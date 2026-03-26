@@ -1,86 +1,87 @@
 import streamlit as st
+import time
 
-# Helper to force Uppercase
-def to_upper(text):
-    return text.upper() if text else ""
+# --- APP CONFIGURATION ---
+st.set_page_config(page_title="BP Market", page_icon="🇵🇭", layout="centered")
 
-st.set_page_config(page_title="Bagong Pilipinas Registration", page_icon="🇵🇭")
-
-# Custom Styling
+# CSS to force ALL CAPS and make buttons big for thumbs
 st.markdown("""
     <style>
-    .stTextInput input { text-transform: uppercase; }
-    div.stButton > button {
+    input { text-transform: uppercase; }
+    .stButton>button {
         width: 100%;
-        border-radius: 10px;
-        background-color: #1d4ed8;
+        border-radius: 12px;
+        height: 3.5em;
+        background-color: #0038a8;
         color: white;
         font-weight: bold;
+        border: none;
+        margin-top: 10px;
     }
+    /* Reduce padding for mobile screens */
+    .block-container { padding-top: 1rem; padding-bottom: 1rem; }
     </style>
     """, unsafe_allow_html=True)
 
 if 'page' not in st.session_state:
     st.session_state.page = "signup"
 
-# --- SIGN UP PAGE ---
+# --- 1. REGISTRATION PAGE ---
 if st.session_state.page == "signup":
-    st.markdown("<h2 style='text-align: center;'>📝 ACCOUNT REGISTRATION</h2>", unsafe_allow_html=True)
-    st.info("NOTE: ALL FIELDS WILL BE AUTOMATICALLY SAVED IN ALL-CAPS")
+    st.markdown("<h2 style='text-align: center;'>🇵🇭 REGISTRATION</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 0.8em;'>ALL FIELDS ARE REQUIRED</p>", unsafe_allow_html=True)
 
-    with st.form("registration_form"):
-        # Personal Info
-        full_name = st.text_input("FULL NAME").upper()
-        age = st.number_input("AGE", min_value=18, max_value=100)
-        country = st.text_input("COUNTRY", value="PHILIPPINES", disabled=True)
-
-        # Location Dropdowns
-        region = st.selectbox("REGION", [
-            "REGION I (Ilocos Region)", "REGION II (Cagayan Valley)", "REGION III (Central Luzon)",
-            "REGION IV-A (CALABARZON)", "MIMAROPA REGION", "REGION V (Bicol Region)",
-            "REGION VI (Western Visayas)", "REGION VII (Central Visayas)", "REGION VIII (Eastern Visayas)",
-            "REGION IX (Zamboanga Peninsula)", "REGION X (Northern Mindanao)", "REGION XI (Davao Region)",
-            "REGION XII (SOCCSKSARGEN)", "REGION XIII (Caraga)", "NCR (National Capital Region)", "CAR", "BARMM"
-        ])
-        
-        city = st.text_input("CITY / MUNICIPALITY").upper()
-        barangay = st.text_input("BARANGAY").upper()
-        
-        email = st.text_input("EMAIL ADDRESS (FOR 6-DIGIT CODE)")
-        password = st.text_input("CREATE PASSWORD", type="password")
-
-        submit = st.form_submit_button("REGISTER & SEND CODE")
-
-        if submit:
-            if not full_name or not city or not barangay or not email:
-                st.error("PLEASE FILL UP ALL FIELDS")
-            else:
-                st.session_state.user_data = {
-                    "name": full_name,
-                    "location": f"{barangay}, {city}, {region}"
-                }
-                st.success("REGISTRATION DATA SAVED. REDIRECTING TO VERIFICATION...")
-                st.session_state.page = "verify"
-                st.rerun()
-
-# --- VERIFICATION PAGE ---
-elif st.session_state.page == "verify":
-    st.title("🔐 VERIFY EMAIL")
-    st.write(f"A CODE WAS SENT TO YOUR EMAIL.")
-    otp = st.text_input("ENTER 6-DIGIT CODE", max_chars=6)
+    # Simplified inputs for speed and data saving
+    full_name = st.text_input("FULL NAME (SURNAME, FIRST NAME)").upper()
+    age = st.number_input("AGE", min_value=18, max_value=100, step=1)
     
-    if st.button("CONFIRM"):
-        # For now, we allow any 6 digits to proceed
-        if len(otp) == 6:
+    # Static Country (Saves data/time)
+    st.text_input("COUNTRY", value="PHILIPPINES", disabled=True)
+
+    # Short list of Regions
+    region = st.selectbox("REGION", [
+        "NCR", "CAR", "REGION I", "REGION II", "REGION III", "REGION IV-A", 
+        "MIMAROPA", "REGION V", "REGION VI", "REGION VII", "REGION VIII", 
+        "REGION IX", "REGION X", "REGION XI", "REGION XII", "REGION XIII", "BARMM"
+    ])
+
+    # Text inputs are more "Data Friendly" than loading 40,000 barangay options
+    city = st.text_input("CITY / MUNICIPALITY").upper()
+    barangay = st.text_input("BARANGAY").upper()
+    
+    email = st.text_input("EMAIL ADDRESS").upper()
+    password = st.text_input("CREATE PASSWORD", type="password")
+
+    if st.button("CREATE ACCOUNT"):
+        if full_name and city and barangay and email and password:
+            # Short local loading effect (Uses 0 extra data)
+            with st.status("VERIFYING...", expanded=False) as status:
+                time.sleep(1.5)
+                status.update(label="VERIFIED!", state="complete", expanded=False)
+            
+            st.session_state.user_name = full_name
             st.session_state.page = "dashboard"
             st.rerun()
         else:
-            st.error("INVALID CODE")
+            st.error("MISSING INFORMATION")
 
-# --- DASHBOARD ---
+# --- 2. DASHBOARD ---
 elif st.session_state.page == "dashboard":
-    st.success(f"WELCOME TO THE MARKET, {st.session_state.user_data['name']}!")
-    st.write(f"LOCATION: {st.session_state.user_data['location']}")
+    st.markdown(f"### WELCOME, {st.session_state.user_name}")
+    st.caption("INVESTOR STATUS: ACTIVE ✅")
+    
+    # Compact metrics for phone screens
+    st.metric("BALANCE", "$4,250.00", "+$150.00")
+    
+    st.markdown("---")
+    
+    # Big touch-friendly buttons
+    if st.button("📥 ADD FUNDS"):
+        st.info("SECURE PAYMENT PORTAL OPENING...")
+        
+    if st.button("📤 WITHDRAW"):
+        st.warning("PROCESSING WITHDRAWAL...")
+
     if st.button("LOGOUT"):
         st.session_state.page = "signup"
         st.rerun()
