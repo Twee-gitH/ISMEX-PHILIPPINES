@@ -2,13 +2,12 @@ import streamlit as st
 import time
 from datetime import datetime, timedelta
 
-# --- 1. APP CONFIG & STYLE ---
+# --- 1. SETTINGS & THEME ---
 st.set_page_config(page_title="BP Market", page_icon="🇵🇭")
 
 st.markdown("""
     <style>
     .stApp { margin-top: 50px; }
-    /* Only text inputs are forced to Upper Case now */
     input[type="text"] { text-transform: uppercase; }
     .stButton>button {
         width: 100%;
@@ -18,7 +17,6 @@ st.markdown("""
         color: white;
         font-weight: bold;
         border: none;
-        margin-top: 10px;
     }
     .deposit-card {
         background-color: #ffffff;
@@ -28,114 +26,81 @@ st.markdown("""
         margin-bottom: 10px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
     }
-    .timer-text { color: #f59e0b; font-weight: bold; font-size: 0.9em; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. THE "MEMORY" (SESSION STATE) ---
+# --- 2. THE APP MEMORY ---
+if 'page' not in st.session_state:
+    st.session_state.page = "signup"  # FORCES SIGNUP FIRST
 if 'deposits' not in st.session_state:
     st.session_state.deposits = []
-if 'page' not in st.session_state:
-    st.session_state.page = "signup"
 if 'user_pin' not in st.session_state:
     st.session_state.user_pin = ""
 
-# --- 3. CALCULATIONS ---
-total_principal = sum(d['amount'] for d in st.session_state.deposits)
-total_profit = sum(d['amount'] * 0.20 for d in st.session_state.deposits)
-total_balance = total_principal + total_profit
-
-# --- 4. SIGNUP PAGE ---
+# --- 3. PAGE 1: SIGN UP (MANDATORY) ---
 if st.session_state.page == "signup":
-    st.markdown("<h2 style='text-align: center;'>🇵🇭 INVESTOR SIGN UP</h2>", unsafe_allow_html=True)
-    full_name = st.text_input("FULL NAME").upper()
+    st.markdown("<h2 style='text-align: center;'>🇵🇭 ACCOUNT REGISTRATION</h2>", unsafe_allow_html=True)
+    
+    full_name = st.text_input("FULL NAME (SURNAME, FIRST NAME)").upper()
+    age = st.number_input("AGE", min_value=18, max_value=100, step=1)
+    st.text_input("COUNTRY", value="PHILIPPINES", disabled=True)
+
+    region = st.selectbox("REGION", ["NCR", "CAR", "REGION I", "REGION II", "REGION III", "REGION IV-A", "MIMAROPA", "REGION V", "REGION VI", "REGION VII", "REGION VIII", "REGION IX", "REGION X", "REGION XI", "REGION XII", "REGION XIII", "BARMM"])
+    city = st.text_input("CITY / MUNICIPALITY").upper()
+    barangay = st.text_input("BARANGAY").upper()
     
     st.markdown("---")
-    # PIN logic: max 6 chars, numeric only
-    reg_pin = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6, help="Numbers only")
-    st.caption("⚠️ MUST BE EXACTLY 6 DIGIT NUMBERS")
+    reg_pin = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
+    st.caption("⚠️ NUMBERS ONLY - REQUIRED FOR WITHDRAWALS")
 
-    if st.button("CREATE SECURE ACCOUNT"):
-        if full_name and len(reg_pin) == 6 and reg_pin.isdigit():
+    if st.button("REGISTER & ENTER MARKET"):
+        if full_name and city and barangay and len(reg_pin) == 6 and reg_pin.isdigit():
             st.session_state.user_name = full_name
             st.session_state.user_pin = reg_pin
             st.session_state.page = "dashboard"
             st.rerun()
         else:
-            st.error("PLEASE PROVIDE FULL NAME AND A 6-DIGIT NUMERIC PIN")
+            st.error("❌ COMPLETE ALL FIELDS AND USE A 6-DIGIT PIN")
 
-# --- 5. DASHBOARD PAGE ---
+# --- 4. PAGE 2: DASHBOARD ---
 elif st.session_state.page == "dashboard":
-    st.markdown(f"### MABUHAY, {st.session_state.user_name}!")
-    
-    col1, col2 = st.columns(2)
-    col1.metric("TOTAL BALANCE", f"₱{total_balance:,.2f}")
-    col2.metric("EXPECTED PROFIT", f"₱{total_profit:,.2f}", delta="20% DAILY")
+    # Profit Logic (20% Daily)
+    total_principal = sum(d['amount'] for d in st.session_state.deposits)
+    total_profit = sum(d['amount'] * 0.20 for d in st.session_state.deposits)
+    total_balance = total_principal + total_profit
+
+    st.markdown(f"### WELCOME, {st.session_state.user_name}!")
+    st.metric("TOTAL BALANCE", f"₱{total_balance:,.2f}")
 
     st.markdown("---")
-    
-    # --- DEPOSIT SECTION ---
-    st.subheader("📥 NEW INVESTMENT")
+    st.subheader("📥 DEPOSIT")
     amounts = [100, 500, 1000, 5000, 10000, 20000, 30000, 50000]
-    selected_amt = st.selectbox("CHOOSE PESO AMOUNT", amounts)
+    selected_amt = st.selectbox("SELECT AMOUNT", amounts)
     
     if st.button(f"INVEST ₱{selected_amt:,}"):
         new_dep = {
             "amount": float(selected_amt),
-            "start_time": datetime.now(),
             "release_time": datetime.now() + timedelta(hours=24),
             "profit": float(selected_amt) * 0.20
         }
         st.session_state.deposits.append(new_dep)
-        st.success(f"₱{selected_amt:,} ADDED TO YOUR PORTFOLIO!")
+        st.success("INVESTMENT ADDED!")
         st.rerun()
 
-    # --- INDIVIDUAL DEPOSITS + COUNTDOWN ---
-    st.markdown("---")
-    st.subheader("⏳ ACTIVE INVESTMENTS")
-    if not st.session_state.deposits:
-        st.write("No active investments.")
-    else:
-        for d in st.session_state.deposits:
-            # Calculate remaining time
-            remaining = d['release_time'] - datetime.now()
-            if remaining.total_seconds() > 0:
-                hours, remainder = divmod(int(remaining.total_seconds()), 3600)
-                minutes, _ = divmod(remainder, 60)
-                timer_display = f"{hours}h {minutes}m remaining"
-            else:
-                timer_display = "✅ PROFIT READY"
-
-            st.markdown(f"""
-            <div class="deposit-card">
-                <b>Investment: ₱{d['amount']:,}</b><br>
-                <span style="color: green;">+ ₱{d['profit']:,} (20% Profit)</span><br>
-                <span class="timer-text">🕒 {timer_display}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # --- WITHDRAWAL SECTION ---
+    # --- WITHDRAW ---
     st.markdown("---")
     st.subheader("📤 WITHDRAW")
-    st.caption("MINIMUM WITHDRAWAL: ₱500.00")
-    withdraw_amt = st.number_input("ENTER PESO AMOUNT", min_value=0.0)
+    w_amount = st.number_input("AMOUNT", min_value=0.0)
+    confirm_pin = st.text_input("CONFIRM 6-DIGIT PIN", type="password", max_chars=6)
     
-    # Security Check
-    confirm_pin = st.text_input("ENTER 6-DIGIT PIN TO WITHDRAW", type="password", max_chars=6)
-    
-    if st.button("SUBMIT WITHDRAWAL REQUEST"):
-        if total_balance < 500:
-            st.error("⚠️ BALANCE MUST BE AT LEAST ₱500.00")
-        elif withdraw_amt < 500:
+    if st.button("REQUEST WITHDRAWAL"):
+        if total_balance < 500 or w_amount < 500:
             st.error("⚠️ MINIMUM WITHDRAWAL IS ₱500.00")
         elif confirm_pin != st.session_state.user_pin:
-            st.error("❌ INCORRECT PIN. ACCESS DENIED.")
-        elif withdraw_amt > total_balance:
-            st.error("⚠️ INSUFFICIENT FUNDS.")
+            st.error("❌ INCORRECT PIN")
         else:
-            st.success("✅ PIN VERIFIED. WITHDRAWAL REQUEST SENT TO ADMIN.")
+            st.success("WITHDRAWAL REQUEST SENT TO ADMIN")
 
     if st.button("LOGOUT"):
         st.session_state.page = "signup"
         st.rerun()
-        
