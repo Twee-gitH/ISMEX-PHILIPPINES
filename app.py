@@ -26,13 +26,6 @@ st.markdown("""
         font-size: 2.2em;
         line-height: 1.2;
     }
-    .admin-card {
-        background-color: #f0f4f8;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 5px solid #0038a8;
-        margin-bottom: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,18 +44,17 @@ if 'pending_deposits' not in st.session_state:
     st.session_state.pending_deposits = [] 
 if 'pending_withdrawals' not in st.session_state:
     st.session_state.pending_withdrawals = []
-if 'show_payment' not in st.session_state:
-    st.session_state.show_payment = False
 
 # --- 5. PAGE: LOGIN ---
 if st.session_state.page == "login":
     st.subheader("LOGIN")
+    # Ang Name ay naka-Caps pa rin para sa uniformity
     l_name = st.text_input("FULL NAME").upper()
-    # Inalis ang max_chars para matanggap ang Black01!
+    # DITO BINAGO: Inalis ang .upper() para tanggapin ang lowercase sa password
     l_pin = st.text_input("PASSWORD / PIN", type="password")
     
     if st.button("ENTER MARKET"):
-        # OWNER LOGIN - Gamit ang iyong secret key
+        # OWNER LOGIN - Case sensitive na ito (dapat eksaktong Black01!)
         if l_name == "ADMIN" and l_pin == "Black01!":
             st.session_state.page = "admin"
             st.rerun()
@@ -78,12 +70,13 @@ if st.session_state.page == "login":
         st.session_state.page = "signup"
         st.rerun()
 
-# --- 6. PAGE: SIGN UP (Para sa Users - 6 digits pa rin) ---
+# --- 6. PAGE: SIGN UP ---
 elif st.session_state.page == "signup":
     st.subheader("CREATE ACCOUNT")
     reg_name = st.text_input("FULL NAME").upper()
     reg_address = st.text_input("FULL ADDRESS").upper()
     st.markdown("---")
+    # Para sa normal users, 6 numbers pa rin ang requirement
     pin1 = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
     pin2 = st.text_input("VERIFY 6-DIGIT PIN", type="password", max_chars=6)
 
@@ -100,6 +93,7 @@ elif st.session_state.page == "signup":
 # --- 7. PAGE: OWNER ADMIN PANEL ---
 elif st.session_state.page == "admin":
     st.subheader("👑 OWNER DASHBOARD")
+    st.write(f"Welcome back, Boss {st.session_state.page}!")
     
     tab1, tab2 = st.tabs(["📥 PENDING DEPOSITS", "📤 PENDING WITHDRAWALS"])
     
@@ -107,13 +101,9 @@ elif st.session_state.page == "admin":
         if not st.session_state.pending_deposits:
             st.info("Walang pending na deposito.")
         for i, dep in enumerate(st.session_state.pending_deposits):
-            st.markdown(f'<div class="admin-card"><b>User:</b> {dep["user"]}<br><b>Amount:</b> ₱{dep["amount"]:,}</div>', unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            if c1.button("APPROVE", key=f"adep_{i}"):
+            st.write(f"User: {dep['user']} | Amount: ₱{dep['amount']:,}")
+            if st.button("APPROVE", key=f"adep_{i}"):
                 st.session_state.deposits.append({"amount": dep['amount'], "release_time": datetime.now() + timedelta(hours=24), "profit": dep['amount'] * 0.20})
-                st.session_state.pending_deposits.pop(i)
-                st.rerun()
-            if c2.button("DECLINE", key=f"ddep_{i}"):
                 st.session_state.pending_deposits.pop(i)
                 st.rerun()
 
@@ -121,13 +111,8 @@ elif st.session_state.page == "admin":
         if not st.session_state.pending_withdrawals:
             st.info("Walang pending na withdrawal.")
         for i, wit in enumerate(st.session_state.pending_withdrawals):
-            st.markdown(f'<div class="admin-card"><b>User:</b> {wit["user"]}<br><b>Amount:</b> ₱{wit["amount"]:,}</div>', unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            if c1.button("RELEASE FUNDS", key=f"awit_{i}"):
-                st.session_state.pending_withdrawals.pop(i)
-                st.success("Funds Released!")
-                st.rerun()
-            if c2.button("REJECT", key=f"dwit_{i}"):
+            st.write(f"User: {wit['user']} | Amount: ₱{wit['amount']:,}")
+            if st.button("RELEASE", key=f"awit_{i}"):
                 st.session_state.pending_withdrawals.pop(i)
                 st.rerun()
 
@@ -139,22 +124,7 @@ elif st.session_state.page == "admin":
 elif st.session_state.page == "dashboard":
     total_balance = sum(d['amount'] for d in st.session_state.deposits) + sum(d['profit'] for d in st.session_state.deposits)
     st.metric("TOTAL BALANCE", f"₱{total_balance:,.2f}")
-
-    st.subheader("📥 INVEST (GCASH / BANK)")
-    selected_amt = st.selectbox("PESO AMOUNT", [100, 500, 1000, 5000, 10000, 20000, 30000, 50000])
     
-    if st.button(f"PROCEED TO PAY ₱{selected_amt:,}"):
-        st.session_state.show_payment = True
-        st.session_state.pending_amt = selected_amt
-
-    if st.session_state.show_payment:
-        st.info(f"Send ₱{st.session_state.pending_amt:,} to GCash and click CONFIRM.")
-        if st.button("✅ I HAVE SENT THE PAYMENT"):
-            st.session_state.pending_deposits.append({"user": st.session_state.db_user['name'], "amount": float(st.session_state.pending_amt)})
-            st.session_state.show_payment = False
-            st.success("Request sent to Owner!")
-            st.rerun()
-
     if st.button("LOGOUT"):
         st.session_state.page = "login"
         st.rerun()
