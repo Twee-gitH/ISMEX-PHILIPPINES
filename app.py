@@ -5,184 +5,138 @@ import os
 from datetime import datetime, timedelta
 import time
 
-# --- CONSTANTS ---
-DB_FILE = "market_pro_data.json"
-DAILY_ROI = 0.20  # 20%
-MIN_WITHDRAW = 500.0
+# --- DATABASE & CONSTANTS ---
+DB_FILE = "bpsm_data.json"
+DAILY_ROI = 0.20 
 
-# --- DATA ENGINE ---
 def load_db():
     if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
+        with open(DB_FILE, "r") as f: return json.load(f)
     return None
 
 def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, default=str)
+    with open(DB_FILE, "w") as f: json.dump(data, f, default=str)
 
-# --- UI CONFIG ---
-st.set_page_config(page_title="BP Market Pro", page_icon="📈", layout="wide")
+# --- MOBILE-FIRST CSS (BPSM THEME) ---
+st.set_page_config(page_title="BPSM - Bagong Pilipinas", page_icon="🇵🇭", layout="centered")
 
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    .stMetric { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .status-pending { color: #f59e0b; font-weight: bold; }
-    .status-completed { color: #10b981; font-weight: bold; }
+    /* Official Header Style */
+    .main-header {
+        text-align: center;
+        color: #0038a8;
+        font-family: 'Arial Black', sans-serif;
+        margin-bottom: 0;
+    }
+    .sub-header {
+        text-align: center;
+        color: #ce1126;
+        font-size: 0.8rem;
+        letter-spacing: 2px;
+        margin-top: -10px;
+        margin-bottom: 20px;
+    }
+    /* Metric Cards */
+    [data-testid="stMetric"] {
+        background: #fdfdfd;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #0038a8;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    }
+    /* Action Buttons */
+    .stButton>button {
+        height: 3.5rem;
+        border-radius: 8px;
+        background-color: #0038a8 !important;
+        color: white !important;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- AUTH LOGIC ---
+# --- AUTH ---
 if 'user' not in st.session_state:
     st.session_state.user = load_db()
 
 if st.session_state.user is None:
-    st.title("🇵🇭 BP Market: Professional")
-    tab1, tab2 = st.tabs(["Register", "Admin Login"])
+    st.markdown("<h1 class='main-header'>BAGONG PILIPINAS</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-header'>STOCK MARKET PORTAL</p>", unsafe_allow_html=True)
     
-    with tab1:
-        name = st.text_input("FULL NAME (As per Govt ID)").upper()
+    with st.container(border=True):
+        st.write("### 🔑 Investor Access")
+        name = st.text_input("FULL NAME (Per Government ID)").upper()
         pin = st.text_input("SECURE 6-DIGIT PIN", type="password", max_chars=6)
-        if st.button("CREATE INVESTOR ACCOUNT", use_container_width=True):
-            if name and len(pin) == 6:
-                user_data = {
-                    "name": name, "pin": pin,
-                    "wallet_balance": 0.0,
-                    "investments": [],
-                    "transactions": [] # Ledger for deposits/withdrawals
-                }
-                save_db(user_data)
-                st.session_state.user = user_data
-                st.rerun()
-    stop = True
-else:
-    stop = False
-
-if not stop:
-    user = st.session_state.user
-    
-    # --- CALCULATE LIVE GROWTH ---
-    active_inv_total = 0.0
-    matured_total = 0.0
-    
-    for inv in user['investments']:
-        start = datetime.fromisoformat(inv['start_time'])
-        end = datetime.fromisoformat(inv['release_time'])
-        now = datetime.now()
         
-        if now >= end:
-            matured_total += (inv['amount'] + inv['profit'])
+        if st.button("REGISTER SECURE ACCOUNT", use_container_width=True):
+            if name and len(pin) == 6:
+                user_data = {"name": name, "pin": pin, "wallet_balance": 0.0, "investments": [], "transactions": []}
+                save_db(user_data); st.session_state.user = user_data; st.rerun()
+            else:
+                st.error("Full name and 6-digit PIN required.")
+    st.stop()
+
+# --- MAIN DASHBOARD ---
+user = st.session_state.user
+
+st.markdown("<h2 class='main-header' style='font-size: 1.5rem;'>BPSM DASHBOARD</h2>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center;'>Investor: <b>{user['name']}</b></p>", unsafe_allow_html=True)
+
+# Calculation Logic
+matured_total = sum((i['amount'] + i['profit']) for i in user['investments'] if datetime.now() >= datetime.fromisoformat(i['release_time']))
+active_total = sum(i['amount'] for i in user['investments'] if datetime.now() < datetime.fromisoformat(i['release_time']))
+liquid_bal = user['wallet_balance'] + matured_total
+
+# Metrics Stacked for Mobile
+st.metric("AVAILABLE LIQUIDITY", f"₱{liquid_bal:,.2f}")
+st.metric("MARKET EXPOSURE", f"₱{active_total:,.2f}")
+
+# --- TABS ---
+tab_trade, tab_funds, tab_logs = st.tabs(["📊 TRADE", "💰 FUNDS", "📄 OFFICIAL LOGS"])
+
+with tab_trade:
+    st.info("📢 **Market Notice:** All stock positions mature in 24 hours with a fixed 20% dividend yield.")
+    trade_amt = st.number_input("Purchase Amount (PHP)", min_value=500.0, step=500.0)
+    
+    if st.button("EXECUTE BUY ORDER", use_container_width=True):
+        if liquid_bal >= trade_amt:
+            new_inv = {
+                "amount": trade_amt, "profit": trade_amt * DAILY_ROI,
+                "start_time": datetime.now().isoformat(),
+                "release_time": (datetime.now() + timedelta(hours=24)).isoformat()
+            }
+            user['investments'].append(new_inv)
+            if user['wallet_balance'] >= trade_amt: user['wallet_balance'] -= trade_amt
+            save_db(user); st.success("Trade Executed Successfully!"); st.rerun()
         else:
-            active_inv_total += inv['amount']
+            st.error("Insufficient Funds. Visit the FUNDS tab to deposit.")
 
-    total_liquid = user['wallet_balance'] + matured_total
+    st.write("---")
+    st.write("### ⏳ Active Positions")
+    for i, inv in enumerate(user['investments']):
+        end = datetime.fromisoformat(inv['release_time'])
+        if datetime.now() < end:
+            st.write(f"**Stock Value:** ₱{inv['amount']:,} | **Yield:** +₱{inv['profit']:,}")
+            st.caption(f"Status: Trading... {str(end - datetime.now()).split('.')[0]} remaining")
+            st.divider()
 
-    # --- SIDEBAR NAV ---
-    with st.sidebar:
-        st.title("🛡️ SECURE ACCESS")
-        st.write(f"User: **{user['name']}**")
-        show_bal = st.toggle("Show Balance", value=True)
-        if st.button("LOGOUT / RESET"):
-            if os.path.exists(DB_FILE): os.remove(DB_FILE)
-            st.session_state.user = None
-            st.rerun()
-
-    # --- TOP METRICS ---
-    st.header("Financial Overview")
-    m1, m2, m3 = st.columns(3)
-    display_bal = f"₱{total_liquid:,.2f}" if show_bal else "₱ ••••••"
-    m1.metric("TOTAL LIQUID BALANCE", display_bal)
-    m2.metric("ACTIVE INVESTMENTS", f"₱{active_inv_total:,.2f}")
-    m3.metric("PLATFORM ROI", f"{DAILY_ROI*100}%", "24 Hours")
-
-    st.divider()
-
-    # --- CORE TABS ---
-    tab_inv, tab_wallet, tab_history = st.tabs(["🚀 Invest", "💳 Wallet & Cashout", "📜 Ledger"])
-
-    with tab_inv:
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.subheader("New Position")
-            inv_amt = st.number_input("Amount (PHP)", min_value=100.0, step=100.0)
-            if st.button("START INVESTMENT", use_container_width=True):
-                if total_liquid >= inv_amt:
-                    # Deduct from balance/matured funds logic
-                    new_inv = {
-                        "amount": inv_amt,
-                        "profit": inv_amt * DAILY_ROI,
-                        "start_time": datetime.now().isoformat(),
-                        "release_time": (datetime.now() + timedelta(hours=24)).isoformat()
-                    }
-                    user['investments'].append(new_inv)
-                    # Simple deduction logic (Prioritize wallet, then matured)
-                    if user['wallet_balance'] >= inv_amt:
-                        user['wallet_balance'] -= inv_amt
-                    else:
-                        # Logic to clear matured investments once used
-                        st.warning("Invested from matured funds.")
-                    
-                    save_db(user)
-                    st.success("Investment successfully deployed!")
-                    st.rerun()
-                else:
-                    st.error("Insufficient Liquid Funds. Please Deposit first.")
-
-        with col2:
-            st.subheader("Active Contracts")
-            for i, inv in enumerate(user['investments']):
-                end = datetime.fromisoformat(inv['release_time'])
-                if datetime.now() < end:
-                    time_left = end - datetime.now()
-                    st.info(f"💰 **₱{inv['amount']:,}** → Maturity in {str(time_left).split('.')[0]}")
-
-    with tab_wallet:
-        w_col1, w_col2 = st.columns(2)
-        with w_col1:
-            st.subheader("Add Funds (Deposit)")
-            st.caption("Send via GCash: 0912-XXX-XXXX")
-            ref_no = st.text_input("Reference Number (Last 6 Digits)")
-            d_amt = st.number_input("Amount Deposited", min_value=100.0)
-            if st.button("NOTIFY ADMIN OF DEPOSIT"):
-                user['transactions'].append({
-                    "date": datetime.now().isoformat(),
-                    "type": "DEPOSIT",
-                    "amount": d_amt,
-                    "ref": ref_no,
-                    "status": "PENDING"
-                })
-                save_db(user)
-                st.toast("Deposit notification sent!")
-
-        with w_col2:
-            st.subheader("Cashout")
-            c_amt = st.number_input("Withdraw Amount", min_value=MIN_WITHDRAW)
-            c_pin = st.text_input("Enter Transaction PIN", type="password")
-            if st.button("REQUEST CASHOUT"):
-                if c_amt <= total_liquid and c_pin == user['pin']:
-                    user['transactions'].append({
-                        "date": datetime.now().isoformat(),
-                        "type": "WITHDRAWAL",
-                        "amount": c_amt,
-                        "status": "PENDING"
-                    })
-                    # Immediately lock funds
-                    user['wallet_balance'] -= c_amt 
-                    save_db(user)
-                    st.warning("Funds locked. Pending Admin Transfer.")
-                else:
-                    st.error("Check Balance or PIN.")
-
-    with tab_history:
-        st.subheader("Transaction Ledger")
-        if user['transactions']:
-            df = pd.DataFrame(user['transactions'])
-            st.dataframe(df, use_container_width=True)
-        else:
-            st.write("No transactions found.")
-
-    # --- AUTO REFRESH ---
-    time.sleep(2)
-    st.rerun()
+with tab_funds:
+    mode = st.radio("Action", ["Deposit Funds", "Withdraw Dividends"], horizontal=True)
+    
+    if mode == "Deposit Funds":
+        st.write("### Transfer via GCash/Maya")
+        st.code("Account: 0912-345-6789\nName: BPSM ADMIN")
+        ref = st.text_input("Transaction Reference ID")
+        amt = st.number_input("Amount Sent", min_value=100.0)
+        if st.button("SUBMIT DEPOSIT PROOF", use_container_width=True):
+            user['transactions'].append({"date": datetime.now().isoformat(), "type": "DEPOSIT", "amt": amt, "status": "PENDING", "ref": ref})
+            save_db(user); st.toast("Verification request sent.")
+            
+    else:
+        st.write("### Withdraw to Wallet")
+        w_amt = st.number_input("Withdrawal Amount", min_value=500.0)
+        w_pin = st.text_input("Confirm 6-Digit PIN", type="password")
+        if st.button("REQUEST PAYOUT", use_container_width=True):
+            if w_pin == user['pin
             
