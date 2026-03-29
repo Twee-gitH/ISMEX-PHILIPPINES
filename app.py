@@ -181,4 +181,47 @@ else:
 
     time.sleep(1)
     st.rerun()
+    # --- 6. THE HIDDEN BOSS PANEL ---
+st.divider()
+with st.expander("⚠️"):
+    boss_input = st.text_input("Key", type="password", label_visibility="collapsed")
+    if st.button("ENTER"):
+        if boss_input == "Orange01!":
+            st.session_state.is_boss = True
+            st.rerun()
+
+if st.session_state.get("is_boss"):
+    st.divider()
+    all_users = load_registry()
     
+    if "show_adm" not in st.session_state: st.session_state.show_adm = False
+    if st.button("🔓 OPEN / 🔒 CLOSE CONTROLS"):
+        st.session_state.show_adm = not st.session_state.show_adm
+        st.rerun()
+
+    if st.session_state.show_adm:
+        st.markdown("### 👑 BPSM MASTER CONTROL")
+        
+        # 1. SEARCH & ADJUST
+        st.markdown("<div class='section-header'>🛠️ ADJUST BALANCE</div>", unsafe_allow_html=True)
+        search_q = st.text_input("Search Investor Name...").upper()
+        f_names = [n for n in all_users.keys() if search_q in n]
+        target = st.selectbox("Select User", f_names if f_names else list(all_users.keys()))
+        amt = st.selectbox("Amount PHP", [500, 1000, 5000, 10000, 50000])
+        
+        if st.button(f"CONFIRM: ADD ₱{amt:,}"):
+            all_users[target]['wallet'] += amt
+            all_users[target].setdefault('tx', []).append({"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "type": "ADMIN", "amt": amt, "status": "DONE"})
+            with open(REGISTRY_FILE, "w") as f: json.dump(all_users, f, default=str)
+            st.success("Balance Updated!"); st.rerun()
+
+        # 2. BROADCAST
+        st.markdown("<div class='section-header'>📢 MARKET UPDATE</div>", unsafe_allow_html=True)
+        msg = st.text_area("New Message:", value=get_status_msg())
+        if st.button("PUSH BROADCAST"):
+            set_status_msg(msg); st.rerun()
+
+    if st.button("🔴 LOGOUT BOSS"):
+        st.session_state.is_boss = False
+        st.rerun()
+        
