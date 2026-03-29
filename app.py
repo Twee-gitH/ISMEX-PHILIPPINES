@@ -4,229 +4,168 @@ import json
 import os
 from datetime import datetime, timedelta
 import time
-import random
 
-# --- 1. DATA PERSISTENCE & REGISTRY (UNTOUCHED LOGIC) ---
+# --- 1. DATA & REGISTRY ---
 REGISTRY_FILE = "bpsm_registry.json"
 
 def load_registry():
     if os.path.exists(REGISTRY_FILE):
-        with open(REGISTRY_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(REGISTRY_FILE, "r") as f:
+                return json.load(f)
+        except: return {}
     return {}
 
-def save_user_to_registry(name, pin):
-    registry = load_registry()
-    if name in registry:
-        return False, "Investor I.D. already exists."
-    registry[name] = {
-        "pin": pin,
-        "wallet_balance": 0.0,
-        "investments": [],
-        "transactions": []
-    }
+def save_user(name, pin):
+    reg = load_registry()
+    if name in reg: return False
+    reg[name] = {"pin": pin, "wallet": 0.0, "inv": [], "tx": []}
     with open(REGISTRY_FILE, "w") as f:
-        json.dump(registry, f, default=str)
-    return True, "Investor I.D. Created Successfully."
+        json.dump(reg, f, default=str)
+    return True
 
-def update_user_data(name, data):
-    registry = load_registry()
-    registry[name] = data
+def update_user(name, data):
+    reg = load_registry()
+    reg[name] = data
     with open(REGISTRY_FILE, "w") as f:
-        json.dump(registry, f, default=str)
+        json.dump(reg, f, default=str)
 
-# --- 2. THEMED DESIGN (THE RADICAL FACE-LIFT) ---
-# This style block mimics the dark theme, neon green, and card layout of your photo.
-st.set_page_config(page_title="BPSM Official Portal", page_icon="🇵🇭", layout="centered")
+# --- 2. THEMED DESIGN (NEON DARK) ---
+st.set_page_config(page_title="BPSM Official", page_icon="🇵🇭", layout="centered")
 
 st.markdown("""
     <style>
-    /* Dark Theme Foundation */
     .stApp { background-color: #0b0c0e; color: white; }
-    header, [data-testid="stHeader"] { background-color: transparent !important; }
     
-    /* Top Logo Header (Matching the 'RISCOIN' style) */
-    .top-brand {
-        text-align: center;
-        color: #ffffff;
-        font-family: 'Arial Black', sans-serif;
-        font-size: 2rem;
-        letter-spacing: 2px;
-        margin-top: 10px;
-        margin-bottom: 5px;
-        text-shadow: 0 0 10px rgba(0, 56, 168, 0.3);
-    }
-    .top-sub-brand {
-        text-align: center;
-        color: #ce1126; /* Official Red */
-        font-size: 0.8rem;
-        letter-spacing: 3px;
-        margin-top: -10px;
-        margin-bottom: 30px;
-    }
+    /* Headers */
+    .brand { text-align: center; color: #ffffff; font-family: 'Arial Black'; font-size: 2.2rem; margin-bottom: 0; }
+    .sub-brand { text-align: center; color: #ce1126; font-size: 0.8rem; letter-spacing: 3px; margin-top: -10px; margin-bottom: 20px; }
 
-    /* The "Quick Trade" Green Card */
-    .trade-card {
-        background-color: #0dcf70;
-        padding: 20px;
-        border-radius: 15px;
-        color: #0b0c0e;
-        margin-top: 15px;
-        margin-bottom: 15px;
-        box-shadow: 0 5px 15px rgba(13, 207, 112, 0.3);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    /* Market Overview Mini-Graphs Card */
-    .market-overview-card {
-        background-color: #17181c;
-        padding: 15px;
-        border-radius: 12px;
-        border: 1px solid #2a2b30;
-        margin-bottom: 15px;
-    }
-    .overview-pair { color: #8c8f99; font-size: 0.8rem; }
-    .overview-price { color: white; font-size: 1.1rem; font-weight: bold; }
-    .overview-change { color: #0dcf70; font-weight: bold; }
-
-    /* Custom Labels */
-    .id-label { 
-        font-size: 0.85rem; 
-        color: #8c8f99;
-        font-weight: 900; 
-        margin-bottom: 0.4rem;
-        font-family: 'Arial Black', sans-serif;
-        display: block;
-        text-transform: uppercase;
-    }
-
-    /* Standardized Input Customization */
+    /* Input Fix: BLACK TEXT ON WHITE BOX */
     .stTextInput input, .stNumberInput input {
+        color: #000000 !important; 
+        -webkit-text-fill-color: #000000 !important;
+        background-color: #ffffff !important;
         border-radius: 12px !important;
-        border: 2px solid #2a2b30 !important;
-        height: 4rem !important; 
-        font-size: 1.2rem !important; 
-        background-color: #17181c !important;
-        color: white !important;
-        padding: 12px !important;
+        height: 4.2rem !important;
+        font-size: 1.2rem !important;
+        font-weight: bold !important;
     }
-    .stTextInput input:focus { border-color: #0038a8 !important; }
 
-    /* Button Style (Pulsing Glow from your photo) */
+    /* Action Icons Row */
+    .action-row { display: flex; justify-content: space-around; margin: 20px 0; }
+    .icon-circle {
+        width: 55px; height: 55px; background-color: #17181c;
+        border: 1px solid #2a2b30; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto; font-size: 1.4rem;
+    }
+    .action-text { font-size: 0.75rem; color: #8c8f99; text-align: center; margin-top: 8px; font-weight: bold; }
+
+    /* Neon Green Button */
     .stButton>button {
-        border-radius: 12px;
-        height: 4rem;
-        font-size: 1.2rem;
-        font-weight: 900;
-        background: linear-gradient(135deg, #0dcf70 0%, #066637 100%) !important;
-        color: #0b0c0e !important;
-        border: none !important;
-        box-shadow: 0 5px 20px rgba(13, 207, 112, 0.3);
-        margin-top: 10px;
+        border-radius: 12px; height: 4.5rem; font-size: 1.2rem; font-weight: 900;
+        background: #0dcf70 !important; color: #0b0c0e !important;
+        border: none !important; box-shadow: 0 5px 20px rgba(13, 207, 112, 0.4);
     }
 
-    /* Tab Layout Fix */
-    .stTabs [data-baseweb="tab-list"] { background-color: transparent; }
-    .stTabs [data-baseweb="tab"] { color: #8c8f99; font-weight: bold; font-size: 1rem; border-radius: 10px; padding: 10px 20px; }
-    .stTabs [data-baseweb="tab"]:hover { color: #ffffff; }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #0dcf70 !important; border-bottom-color: #0dcf70 !important; }
-
+    /* Labels */
+    .id-label { font-size: 0.9rem; color: #8c8f99; font-weight: 900; margin-bottom: 5px; display: block; }
+    
+    /* Market Box */
+    .market-box {
+        background-color: #17181c; padding: 15px; border-radius: 12px;
+        border: 1px solid #2a2b30; margin-bottom: 10px;
+    }
+    .change { color: #0dcf70; float: right; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. AUTHENTICATION FLOW (UNTOUCHED LOGIC) ---
-if 'active_user' not in st.session_state:
-    st.session_state.active_user = None
+# --- 3. AUTHENTICATION ---
+if 'user' not in st.session_state: st.session_state.user = None
+if 'tab_index' not in st.session_state: st.session_state.tab_index = 0
 
-if st.session_state.active_user is None:
-    # Top BPSM Header in RISCOIN Style
-    st.markdown("<h1 class='top-brand'>BPSM</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='top-sub-brand'>BAGONG PILIPINAS STOCK MARKET</p>", unsafe_allow_html=True)
+if st.session_state.user is None:
+    st.markdown("<h1 class='brand'>BPSM</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-brand'>BAGONG PILIPINAS STOCK MARKET</p>", unsafe_allow_html=True)
     
-    # Custom Green Card as the Sign-In Hub
-    st.markdown("""
-        <div class="trade-card">
-            <div>
-                <b>Start Trading Today</b><br>
-                Official Digital Floor
-            </div>
-            <div style="font-size: 2rem;">👤</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Login and Registration Tabs using New Style
-    auth_tab, reg_tab = st.tabs(["🔑 SIGN IN", "📝 REGISTER"])
-
-    with auth_tab:
+    t1, t2 = st.tabs(["🔑 SIGN IN", "📝 REGISTER"])
+    with t1:
         st.markdown("<p class='id-label'>INVESTOR FULL NAME</p>", unsafe_allow_html=True)
-        login_name = st.text_input("name_id", placeholder="name_id", label_visibility="collapsed").upper()
-        
+        l_name = st.text_input("l_n", label_visibility="collapsed").upper()
         st.markdown("<p class='id-label'>6-DIGIT SECURITY PIN</p>", unsafe_allow_html=True)
-        login_pin = st.text_input("pin_id", type="password", max_chars=6, placeholder="pin_id", label_visibility="collapsed")
-        
-        if st.button("VERIFY & ENTER PORTAL", use_container_width=True):
-            registry = load_registry()
-            # Verification logic stays identical
-            if login_name in registry and registry[login_name]['pin'] == login_pin:
-                st.session_state.active_user = login_name
+        l_pin = st.text_input("l_p", type="password", max_chars=6, label_visibility="collapsed")
+        if st.button("VERIFY & ENTER"):
+            reg = load_registry()
+            if l_name in reg and reg[l_name]['pin'] == l_pin:
+                st.session_state.user = l_name
                 st.rerun()
-            else:
-                st.error("Credential Verification Failed. Check Name or PIN.")
+            else: st.error("Invalid Credentials.")
+    with t2:
+        r_name = st.text_input("FULL NAME").upper()
+        r_pin = st.text_input("PIN (6 DIGITS)", type="password", max_chars=6)
+        if st.button("CREATE I.D."):
+            if r_name and len(r_pin) == 6:
+                if save_user(r_name, r_pin): st.success("Created! Please Sign In.")
+                else: st.error("Name already taken.")
 
-    with reg_tab:
-        st.write("### Create Official Investor ID")
-        new_name = st.text_input("FULL NAME (AS PER GOVT I.D.)").upper()
-        new_pin = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
-        confirm_pin = st.text_input("CONFIRM PIN", type="password", max_chars=6)
-        
-        if st.button("REGISTER I.D.", use_container_width=True):
-            if len(new_pin) != 6 or not new_pin.isdigit():
-                st.error("PIN must be exactly 6 digits.")
-            elif new_pin != confirm_pin:
-                st.error("PINs do not match.")
-            elif new_name:
-                success, msg = save_user_to_registry(new_name, new_pin)
-                if success:
-                    st.success("Account Created! You can now Sign In.")
-                else:
-                    st.warning(msg)
-
-# --- 4. THE DASHBOARD (NEW MODERN FINTECH LOOK) ---
+# --- 4. DASHBOARD ---
 else:
-    current_username = st.session_state.active_user
-    registry = load_registry()
-    user_data = registry[current_username]
+    name = st.session_state.user
+    reg = load_registry()
+    data = reg[name]
 
-    # Matching the Top Bar
-    st.markdown("<h1 class='top-brand' style='font-size: 1.5rem;'>BPSM PORTAL</h1>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align:center;'>Investor: <b>{current_username}</b></p>", unsafe_allow_html=True)
-    
-    # Matching the "Market Overview" Card from photo
-    # This simulates market data to complete the look.
+    st.markdown(f"<h3 style='text-align:center;'>Investor: {name}</h3>", unsafe_allow_html=True)
+
+    # Market Overview
     st.markdown("""
-        <div class="market-overview-card">
-            <div style="display: flex; justify-content: space-between;">
-                <div>
-                    <span class="overview-pair">BPSM/PHP</span><br>
-                    <span class="overview-price">₱66,559.64</span>
-                    <span class="overview-change">+0.01%</span>
-                </div>
-                <div style="font-size: 1.5rem;">📈</div>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <div>
-                    <span class="overview-pair">MNL/USD</span><br>
-                    <span class="overview-price">$1998.52</span>
-                    <span class="overview-change">+0.03%</span>
-                </div>
-                <div>
-                    <span class="overview-pair">TRX/USDT</span><br>
-                    <span class="overview-price">0.31966</span>
-                    <span class="overview-change">+0.08%</span>
-                </div>
-            </div>
+        <div class="market-box">
+            <span style="color:#8c8f99">BTC/PHP</span> <span class="change">+1.25%</span><br>
+            <span style="font-size:1.2rem; font-weight:bold;">₱3,845,210.00</span>
         </div>
-        """,
+    """, unsafe_allow_html=True)
+
+    # Riscoin Action Row
+    st.markdown("""
+        <div class="action-row">
+            <div class="action-item"><div class="icon-circle">📤</div><div class="action-text">Withdraw</div></div>
+            <div class="action-item"><div class="icon-circle">📥</div><div class="action-text">Deposit</div></div>
+            <div class="action-item"><div class="icon-circle">🔄</div><div class="action-text">Convert</div></div>
+            <div class="action-item"><div class="icon-circle">⋯</div><div class="action-text">More</div></div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Balance Logic
+    now = datetime.now()
+    total_matured = sum((i['amt'] + i['prof']) for i in data['inv'] if now >= datetime.fromisoformat(i['end']))
+    liquid = data['wallet'] + total_matured
+
+    st.metric("AVAILABLE BALANCE", f"₱{liquid:,.2f}")
+
+    tab_trade, tab_wallet = st.tabs(["📊 TRADE", "💳 WALLET"])
     
+    with tab_trade:
+        amt = st.number_input("Trade Amount", min_value=500.0, step=500.0)
+        if st.button("EXECUTE BUY ORDER"):
+            if liquid >= amt:
+                new_inv = {"amt": amt, "prof": amt*0.2, "end": (now + timedelta(hours=24)).isoformat()}
+                data['inv'].append(new_inv)
+                if data['wallet'] >= amt: data['wallet'] -= amt
+                update_user(name, data)
+                st.success("Trade Active!")
+                st.rerun()
+            else: st.error("Low Balance.")
+
+    with tab_wallet:
+        st.write("#### GCASH DEPOSIT: 0912-345-6789")
+        d_amt = st.number_input("Deposit Amount", min_value=100.0)
+        ref = st.text_input("Ref Number")
+        if st.button("REPORT DEPOSIT"):
+            data['tx'].append({"type": "DEP", "amt": d_amt, "ref": ref, "status": "PENDING"})
+            update_user(name, data)
+            st.info("Sent to Admin for Approval.")
+
+    if st.sidebar.button("LOGOUT"):
+        st.session_state.user = None
+        st.rerun()
+        
