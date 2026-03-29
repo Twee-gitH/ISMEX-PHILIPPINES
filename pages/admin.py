@@ -23,7 +23,7 @@ st.set_page_config(page_title="BPSM ADMIN", layout="wide")
 # This box appears in the sidebar on mobile
 admin_pw = st.sidebar.text_input("Admin Key", type="password")
 
-if admin_pw == "MASTER123":
+if admin_pw == "Orange01!":
     st.title("👨‍💼 BPSM MASTER CONTROL")
     reg = load_registry()
     
