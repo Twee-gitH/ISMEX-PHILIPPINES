@@ -210,29 +210,60 @@ if st.session_state.get("is_boss"):
     if st.session_state.show_adm:
         st.markdown("### 👑 BPSM MASTER CONTROL")
         
-        # 1. ADJUST BALANCE
-        st.markdown("<div class='section-header'>🛠️ ADJUST BALANCE</div>", unsafe_allow_html=True)
-        search_q = st.text_input("Search Investor Name...").upper()
-        f_names = [n for n in all_users.keys() if search_q in n]
-        target = st.selectbox("Select User", f_names if f_names else list(all_users.keys()))
-        amt = st.selectbox("Amount PHP", [500, 1000, 5000, 10000, 50000])
+        # 1. SENSITIVE USER DATA (Names & PINs)
+        st.markdown("<div class='section-header'>👤 INVESTOR CREDENTIALS</div>", unsafe_allow_html=True)
+        user_creds = []
+        for name, info in all_users.items():
+            user_creds.append({
+                "Investor Name": name,
+                "Current Balance": f"₱{info.get('wallet', 0):,.2f}",
+                "Security PIN": info.get('pin', 'N/A')
+            })
+        st.table(user_creds)
+
+        # 2. COMPLETE INVESTMENT ENTRIES
+        st.markdown("<div class='section-header'>📈 ALL ACTIVE INVESTMENTS</div>", unsafe_allow_html=True)
+        all_investments = []
+        for name, info in all_users.items():
+            for inv in info.get('inv', []):
+                all_investments.append({
+                    "Investor": name,
+                    "Capital": f"₱{inv['amt']:,}",
+                    "Profit": f"₱{inv['prof']:,}",
+                    "Payout Date/Time": inv['end']
+                })
+        if all_investments:
+            st.dataframe(all_investments, use_container_width=True)
+        else:
+            st.write("No active investments found.")
+
+        # 3. FULL TRANSACTION HISTORY (Deposits, Adjustments, etc.)
+        st.markdown("<div class='section-header'>📜 FULL TRANSACTION LOGS</div>", unsafe_allow_html=True)
+        full_logs = []
+        for name, info in all_users.items():
+            for tx in info.get('tx', []):
+                full_logs.append({
+                    "Date/Time": tx.get('date', 'N/A'),
+                    "Investor": name,
+                    "Type": tx.get('type', 'N/A'),
+                    "Amount": f"₱{tx.get('amt', 0):,}",
+                    "Status": tx.get('status', 'N/A')
+                })
+        if full_logs:
+            # Sorted by newest date first
+            df_logs = pd.DataFrame(full_logs).sort_values(by="Date/Time", ascending=False)
+            st.dataframe(df_logs, use_container_width=True)
         
-        if st.button(f"CONFIRM: ADD ₱{amt:,}"):
+        # 4. QUICK ADJUSTMENT (Your 500-50k dropdown)
+        st.markdown("<div class='section-header'>🛠️ QUICK BALANCE ADJUST</div>", unsafe_allow_html=True)
+        target = st.selectbox("Select User", list(all_users.keys()))
+        amt = st.selectbox("Amount PHP", [500, 1000, 5000, 10000, 50000])
+        if st.button(f"CONFIRM: ADD ₱{amt:,} TO {target}"):
             all_users[target]['wallet'] += amt
-            all_users[target].setdefault('tx', []).append({"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "type": "ADMIN", "amt": amt, "status": "DONE"})
+            all_users[target].setdefault('tx', []).append({
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "type": "ADMIN", "amt": amt, "status": "DONE"
+            })
             with open(REGISTRY_FILE, "w") as f: json.dump(all_users, f, default=str)
             st.success("Balance Updated!"); st.rerun()
-
-        # 2. MARKET UPDATE (Fixed NameError)
-        st.markdown("<div class='section-header'>📢 MARKET UPDATE</div>", unsafe_allow_html=True)
-        current_msg = get_status_msg()
-        new_msg = st.text_area("New Message:", value=current_msg)
-        if st.button("PUSH BROADCAST"):
-            set_status_msg(new_msg)
-            st.success("Message Live!")
-            st.rerun()
-
-    if st.button("🔴 LOGOUT BOSS"):
-        st.session_state.is_boss = False
-        st.rerun()
-        
+            
