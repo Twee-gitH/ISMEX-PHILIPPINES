@@ -41,52 +41,53 @@ st.markdown("""
     <style>
     .stApp { background-color: #f4f7f9; }
     
-    /* The Cover Design */
-    .cover-card {
-        background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%);
-        padding: 40px;
-        border-radius: 20px;
-        color: white;
-        text-align: center;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    }
-    
-    /* ================================================
-    TARGETED FIX: Overlapping Label/Box Problem
-    ================================================
-    Change fixed px to rem for phone compatibility.
-    Change negative margin to a small positive gap.
-    ================================================
-    */
+    /* 1. THE LABELS: High Visibility Blue */
     .id-label { 
-        font-size: 0.8rem; /* Slightly larger for phone readability */
-        color: #0038a8; /* High Contrast Official Blue */
+        font-size: 0.95rem; 
+        color: #0038a8;
         font-weight: 900; 
-        
-        /* THE CRITICAL CHANGE */
-        /* Old Style: margin-bottom: -15px; (Crunches the text) */
-        margin-bottom: 0.2rem; /* Creates a small, necessary vertical gap */
-        
+        margin-bottom: 0.6rem;
         font-family: 'Arial Black', sans-serif;
+        display: block;
+        text-transform: uppercase;
     }
     
-    /* Input Form Customization */
+    /* 2. THE BOXES: Fix Invisible Text & Enlarge for Mobile */
     .stTextInput input {
-        border-radius: 10px !important;
+        color: #000000 !important; /* FORCES BLACK TEXT */
+        -webkit-text-fill-color: #000000 !important; /* FIX FOR PHONES */
+        border-radius: 12px !important;
         border: 2px solid #0038a8 !important;
-        height: 3.5rem;
-        background-color: #ffffff;
+        height: 4.2rem !important; 
+        font-size: 1.3rem !important; 
+        background-color: #ffffff !important;
+        padding: 12px !important;
+        font-weight: bold !bold;
     }
+
+    /* 3. THE BUTTON: High-Contrast Blue with Glow */
     .stButton>button {
-        border-radius: 10px;
-        height: 3.5rem;
-        font-weight: bold;
-        background-color: #0038a8 !important;
+        border-radius: 12px;
+        height: 4.5rem;
+        font-size: 1.2rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #0038a8 0%, #002673 100%) !important;
         color: white !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(0, 56, 168, 0.3);
+        margin-top: 20px;
+        letter-spacing: 1px;
+    }
+
+    /* Make the button look pressed when tapped */
+    .stButton>button:active {
+        transform: scale(0.98);
+        background-color: #ce1126 !important; /* Turns Red briefly when tapped */
     }
     </style>
     """, unsafe_allow_html=True)
+
+
 
 # --- 3. AUTHENTICATION FLOW ---
 if 'active_user' not in st.session_state:
