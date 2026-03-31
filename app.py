@@ -10,8 +10,6 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'page' not in st.session_state: st.session_state.page = "main"
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
 if 'confirm_amt' not in st.session_state: st.session_state.confirm_amt = False
-# Added this to control which tab is active
-if 'active_tab' not in st.session_state: st.session_state.active_tab = 0 
 
 if not os.path.exists("receipts"):
     os.makedirs("receipts")
@@ -62,32 +60,29 @@ st.markdown("""
 if st.session_state.user is None and not st.session_state.is_boss:
     st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1><p>Automatic 24-Hour Payouts | 5% Daily ROI</p></div>", unsafe_allow_html=True)
     
-    # Use session_state.active_tab to jump between tabs
     t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
     
     with t1:
-        ln = st.text_input("INVESTOR NAME", key="login_name").upper()
-        lp = st.text_input("SECURE PIN", type="password", max_chars=6, key="login_pin")
+        ln = st.text_input("INVESTOR NAME").upper()
+        lp = st.text_input("SECURE PIN", type="password", max_chars=6)
         if st.button("VERIFY & ACCESS"):
             reg = load_registry()
             if ln in reg and reg[ln].get('pin') == lp:
                 st.session_state.user = ln
                 st.rerun()
-            else: st.error("Invalid Credentials")
             
     with t2:
-        rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
-        rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6, key="reg_pin")
-        referrer = st.text_input("REFERRER NAME (OPTIONAL)", key="reg_ref").upper()
+        rn = st.text_input("FULL LEGAL NAME").upper()
+        rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
+        referrer = st.text_input("REFERRER NAME (OPTIONAL)").upper()
         if st.button("CREATE ACCOUNT"):
             reg = load_registry()
             if rn and len(rp) == 6:
                 new_data = {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": referrer if referrer in reg else None, "ref_bonus_requested": False, "ref_bonus_claimed": False, "ref_earnings": 0.0}
                 update_user(rn, new_data)
-                st.success("Account Created! Redirecting to Login...")
+                st.success("Account Created!")
                 time.sleep(1.5)
-                # This logic forces the app to refresh and stay on the page (Sign-In is default)
-                st.rerun()
+                st.rerun() # Forces refresh back to Sign-In tab
     
     st.divider()
     with st.expander("MASTER ACCESS"):
@@ -123,7 +118,7 @@ elif st.session_state.user:
         data['inv'] = active_inv
         update_user(name, data); st.rerun()
 
-    st.markdown("""<div class="ticker-wrap"><div class="ticker-text">🔥 FLASH: Market liquidation successful! All 24H payouts credited. | 🚀 JOIN NOW: 5% Daily ROI Guaranteed | 📈 BPSM: The future of local trading is here!</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="ticker-wrap"><div class="ticker-text">🔥 FLASH: Market liquidation successful! All 24H payouts credited. | 🚀 JOIN NOW: 5% Daily ROI Guaranteed</div></div>""", unsafe_allow_html=True)
     st.markdown(f"<div class='user-box'><p style='color:#8c8f99;'>WITHDRAWABLE BALANCE</p><h1 class='balance-val'>₱{data['wallet']:,.2f}</h1><p style='color:#8c8f99;'>Account: {name}</p></div>", unsafe_allow_html=True)
 
     if st.session_state.page == "dep":
@@ -132,7 +127,6 @@ elif st.session_state.user:
         if not st.session_state.confirm_amt:
             if st.button("CONFIRM AMOUNT"): st.session_state.confirm_amt = True; st.rerun()
         else:
-            st.success(f"Amount Confirmed: ₱{d_amt:,.2f}")
             receipt = st.file_uploader("Upload GCash Receipt", type=['jpg', 'png', 'jpeg'])
             if st.button("SUBMIT DEPOSIT"):
                 if receipt:
@@ -145,10 +139,10 @@ elif st.session_state.user:
 
     elif st.session_state.page == "wd":
         st.markdown("<div class='section-header'>📤 WITHDRAW FUNDS</div>", unsafe_allow_html=True)
-        w_amt = st.number_input("Amount (Min ₱1,000)", min_value=1000.0, max_value=max(1000.0, data['wallet']), step=100.0)
-        w_bank = st.text_input("BANK NAME (e.g. BDO, BPI, GCash)")
+        w_amt = st.number_input("Amount", min_value=1000.0, max_value=max(1000.0, data['wallet']))
+        w_bank = st.text_input("BANK/METHOD (GCash, BDO, etc)")
         w_info = st.text_input("ACCOUNT NAME & NUMBER")
-        if st.button("SUBMIT WITHDRAWAL REQUEST"):
+        if st.button("SUBMIT WITHDRAWAL"):
             if data['wallet'] >= w_amt:
                 data['wallet'] -= w_amt
                 data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WITHDRAWAL", "amt": w_amt, "info": f"{w_bank}: {w_info}", "status": "PENDING_WD"})
@@ -157,25 +151,21 @@ elif st.session_state.user:
 
     else:
         c1, c2 = st.columns(2)
-        with c1:
+        with c1: 
             if st.button("📥 DEPOSIT"): st.session_state.page = "dep"; st.rerun()
-        with c2:
+        with c2: 
             if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
 
         st.markdown("<div class='section-header'>⏳ ACTIVE 24H CYCLES (5% ROI)</div>", unsafe_allow_html=True)
-        if not data.get('inv'): st.write("No active interest running.")
-        else:
-            for idx, t in enumerate(data['inv']):
-                try:
-                    rem = datetime.fromisoformat(t['end']) - now
-                    st.markdown(f"<div style='background:#1c1e24; padding:15px; border-radius:15px; border:1px solid #3a3d46; margin-bottom:10px;'>Capital: ₱{t['amt']:,} | Time Left: {str(rem).split('.')[0]}</div>", unsafe_allow_html=True)
-                except: continue
+        for idx, t in enumerate(data.get('inv', [])):
+            try:
+                rem = datetime.fromisoformat(t['end']) - now
+                st.markdown(f"<div style='background:#1c1e24; padding:10px; border-radius:10px; margin-bottom:5px;'>Capital: ₱{t['amt']:,} | Time Left: {str(rem).split('.')[0]}</div>", unsafe_allow_html=True)
+            except: continue
 
         st.markdown("<div class='section-header'>📜 TRANSACTION LOGS</div>", unsafe_allow_html=True)
         for t in reversed(data.get('tx', [])):
-            s = t['status']
-            cls = "status-yellow" if s.startswith("PENDING") else "status-blue" if s == "SUCCESSFUL_DEP" else "status-green"
-            st.markdown(f"**{t['date']}** | {t['type']} | ₱{t['amt']:,} | <span class='{cls}'>{s}</span>", unsafe_allow_html=True)
+            st.write(f"{t['date']} | {t['type']} | ₱{t['amt']:,} | {t['status']}")
 
     if st.sidebar.button("LOGOUT"): st.session_state.user = None; st.rerun()
 
@@ -209,4 +199,4 @@ if st.session_state.is_boss:
                     update_user(u_name, all_users[u_name]); st.rerun()
 
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-        
+                    
