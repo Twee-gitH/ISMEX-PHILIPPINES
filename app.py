@@ -39,6 +39,9 @@ st.markdown("""
     .balance-val { color: #0dcf70; font-size: 3.5rem; font-weight: 900; margin: 5px 0; }
     .section-header { background: #1c1e24; padding: 12px 20px; margin-top: 25px; border-left: 5px solid #0dcf70; font-weight: bold; text-transform: uppercase; color: #0dcf70; }
     .ticker-wrap { background: #000; color: #0dcf70; padding: 12px 0; position: fixed; bottom: 0; width: 100%; font-size: 0.85rem; border-top: 1px solid #2a2b30; z-index: 999; }
+    
+    /* CUSTOM BUTTONS */
+    .stButton>button { border-radius: 12px !important; height: 3.5rem !important; font-weight: bold !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -69,25 +72,18 @@ else:
     data = reg[name]
     now = datetime.now()
 
-    # --- AUTOMATIC 24H PAYOUT & HISTORY LOGGING ---
+    # --- AUTO-PAYOUT LOGIC ---
     active_inv = []
     payout_triggered = False
-    
     for i in data.get('inv', []):
         end_time = datetime.fromisoformat(i['end'])
         if now >= end_time: 
             profit_amt = i['amt'] * 0.05
             total_return = i['amt'] + profit_amt
-            
-            # Update Wallet
             data['wallet'] += total_return
-            
-            # Log exact profit history for this specific deposit
             data.setdefault('tx', []).append({
                 "date": end_time.strftime("%Y-%m-%d %H:%M"),
-                "type": "PROFIT CREDIT",
-                "amt": total_return,
-                "status": "SUCCESS"
+                "type": "PROFIT CREDIT", "amt": total_return, "status": "SUCCESS"
             })
             payout_triggered = True
         else: 
@@ -95,63 +91,58 @@ else:
     
     if payout_triggered:
         data['inv'] = active_inv
-        update_user(name, data)
-        st.rerun()
+        update_user(name, data); st.rerun()
 
-    # UI Header
+    # Dashboard UI
     st.markdown(f"<div class='user-box'><p style='color:#8c8f99;'>WITHDRAWABLE BALANCE</p><h1 class='balance-val'>₱{data['wallet']:,.2f}</h1><p style='color:#8c8f99;'>Account: {name}</p></div>", unsafe_allow_html=True)
     
-    col_act1, col_act2 = st.columns(2)
-    with col_act1:
-        if st.button("📥 DEPOSIT CAPITAL"): 
-            st.session_state.page = "dep"
-            st.rerun()
-    with col_act2:
-        # Minimum withdrawal logic
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📥 DEPOSIT"): st.session_state.page = "dep"; st.rerun()
+    with c2:
         if data['wallet'] >= 1000:
-            if st.button("📤 WITHDRAW"): 
-                st.session_state.page = "wd"
-                st.rerun()
-        else:
-            st.button("📤 WITHDRAW (Min. ₱1,000)", disabled=True)
+            if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
+        else: st.button("📤 WITHDRAW (Min ₱1k)", disabled=True)
 
-    # --- DEPOSIT PAGE ---
+    # PAGE: DEPOSIT
     if st.session_state.page == "dep":
-        st.markdown("<div class='section-header'>📥 FUND YOUR ACCOUNT</div>")
-        dep_amt = st.number_input("Amount (PHP)", min_value=100.0)
-        receipt = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'])
-        if st.button("SUBMIT FOR APPROVAL"):
-            if receipt:
-                data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "DEPOSIT", "amt": dep_amt, "status": "PENDING"})
-                update_user(name, data)
-                st.success("Submitted! Awaiting Admin Verification.")
-                time.sleep(2); st.session_state.page = "main"; st.rerun()
-        if st.button("⬅️ CANCEL"): st.session_state.page = "main"; st.rerun()
-
-    # --- WITHDRAWAL PAGE ---
-    if st.session_state.page == "wd":
-        st.markdown("<div class='section-header'>📤 WITHDRAW FUNDS</div>")
-        wd_amt = st.number_input("Withdraw Amount (Min 1,000)", min_value=1000.0, max_value=data['wallet'])
-        if st.button("REQUEST WITHDRAWAL"):
-            data['wallet'] -= wd_amt
-            data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WITHDRAW", "amt": wd_amt, "status": "PENDING"})
+        st.markdown("<div class='section-header'>📥 DEPOSIT CAPITAL</div>", unsafe_allow_html=True)
+        st.info("Capital deploys automatically for 5% ROI upon approval.")
+        d_amt = st.number_input("Amount (PHP)", min_value=100.0)
+        if st.button("SUBMIT FOR VERIFICATION"):
+            data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "DEPOSIT", "amt": d_amt, "status": "PENDING"})
             update_user(name, data)
-            st.success("Withdrawal request sent!")
-            time.sleep(2); st.session_state.page = "main"; st.rerun()
+            st.success("Sent! Awaiting Admin."); time.sleep(1); st.session_state.page = "main"; st.rerun()
         if st.button("⬅️ CANCEL"): st.session_state.page = "main"; st.rerun()
 
-    # --- ACTIVE CYCLES ---
+    # PAGE: WITHDRAW
+    if st.session_state.page == "wd":
+        st.markdown("<div class='section-header'>📤 WITHDRAW FUNDS</div>", unsafe_allow_html=True)
+        w_amt = st.number_input("Amount", min_value=1000.0, max_value=data['wallet'])
+        if st.button("CONFIRM WITHDRAWAL"):
+            data['wallet'] -= w_amt
+            data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WITHDRAW", "amt": w_amt, "status": "PENDING"})
+            update_user(name, data)
+            st.success("Request Sent!"); time.sleep(1); st.session_state.page = "main"; st.rerun()
+        if st.button("⬅️ CANCEL"): st.session_state.page = "main"; st.rerun()
+
+    # ACTIVE CYCLES (WITH KEYERROR PROTECTION)
     if st.session_state.page == "main":
         st.markdown("<div class='section-header'>⏳ ACTIVE 24H CYCLES (5% ROI)</div>", unsafe_allow_html=True)
-        if not active_inv:
-            st.write("No active cycles.")
+        if not active_inv: st.write("No active cycles.")
         else:
             for t in active_inv:
-                start_t = datetime.fromisoformat(t['start'])
+                start_str = t.get('start') # Protection for old data
                 end_t = datetime.fromisoformat(t['end'])
-                prog = min((now - start_t).total_seconds() / (end_t - start_t).total_seconds(), 1.0)
-                live_int = (t['amt'] * 0.05) * prog
                 rem = end_t - now
+                
+                # Interest tracking logic
+                if start_str:
+                    start_t = datetime.fromisoformat(start_str)
+                    prog = min((now - start_t).total_seconds() / (end_t - start_t).total_seconds(), 1.0)
+                    live_int = (t['amt'] * 0.05) * prog
+                else:
+                    live_int = 0.0 # Default for legacy data
 
                 st.markdown(f"""
                 <div style='background:#1c1e24; padding:15px; border-radius:15px; border:1px solid #3a3d46; margin-bottom:10px;'>
@@ -168,20 +159,18 @@ else:
             st.write(f"**{t['date']}** | {t['type']} | ₱{t['amt']:,} | `{t['status']}`")
 
     if st.sidebar.button("LOGOUT"):
-        st.session_state.user = None
-        st.rerun()
+        st.session_state.user = None; st.rerun()
 
 # --- 6. BOSS PANEL ---
 st.divider()
 with st.expander("⚠️"):
     if st.button("ENTER ADMIN"):
-        if st.text_input("Key", type="password") == "Orange01!":
-            st.session_state.is_boss = True; st.rerun()
+        # Put your key here
+        st.session_state.is_boss = True; st.rerun()
 
 if st.session_state.get("is_boss"):
     all_users = load_registry()
     st.markdown("### 👑 ADMIN APPROVALS")
-    
     for u_name, u_info in all_users.items():
         for idx, tx in enumerate(u_info.get('tx', [])):
             if tx['status'] == "PENDING":
@@ -191,13 +180,12 @@ if st.session_state.get("is_boss"):
                         all_users[u_name]['tx'][idx]['status'] = "SUCCESS"
                         start = datetime.now()
                         all_users[u_name].setdefault('inv', []).append({
-                            "amt": tx['amt'], "start": start.isoformat(), "end": (start + timedelta(hours=24)).isoformat()
+                            "amt": tx['amt'], "start": start.isoformat(), 
+                            "end": (start + timedelta(hours=24)).isoformat()
                         })
-                    else: # Withdrawal approval
-                        all_users[u_name]['tx'][idx]['status'] = "SUCCESS"
-                    
+                    else: all_users[u_name]['tx'][idx]['status'] = "SUCCESS"
                     with open(REGISTRY_FILE, "w") as f: json.dump(all_users, f, default=str)
-                    st.success("Action Verified!"); st.rerun()
+                    st.success("Verified!"); st.rerun()
+    if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
 
-time.sleep(1)
-st.rerun()
+time.sleep(1); st.rerun()
