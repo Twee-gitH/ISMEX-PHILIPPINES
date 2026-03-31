@@ -46,10 +46,11 @@ st.markdown("""
     .ticker-text { display: inline-block; white-space: nowrap; animation: ticker 25s linear infinite; font-weight: bold; }
     .stButton>button { border-radius: 12px !important; height: 3.5rem !important; font-weight: bold !important; width: 100%; }
     
-    .status-pending-dep { color: #ffff00; font-weight: bold; }
-    .status-success-dep { color: #0000ff; font-weight: bold; }
-    .status-pending-wd { color: #ffa500; font-weight: bold; }
-    .status-success-wd { color: #00ff00; font-weight: bold; }
+    /* STATUS COLORS */
+    .status-yellow { color: #ffff00 !important; font-weight: bold; }
+    .status-blue { color: #00aaff !important; font-weight: bold; }
+    .status-orange { color: #ffa500 !important; font-weight: bold; }
+    .status-green { color: #00ff00 !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -103,12 +104,10 @@ else:
     # --- PAGE: DEPOSIT ---
     if st.session_state.page == "dep":
         st.markdown("<div class='section-header'>📥 DEPOSIT CAPITAL</div>", unsafe_allow_html=True)
-        # MINIMUM DEPOSIT 1000
-        d_amt = st.number_input("Enter Amount (PHP)", min_value=1000.0, step=100.0, disabled=st.session_state.confirm_amt)
+        d_amt = st.number_input("Enter Amount (Min ₱1,000)", min_value=1000.0, step=100.0, disabled=st.session_state.confirm_amt)
         if not st.session_state.confirm_amt:
             if st.button("CONFIRM AMOUNT"):
-                if d_amt >= 1000: st.session_state.confirm_amt = True; st.rerun()
-                else: st.error("Minimum deposit is ₱1,000.")
+                st.session_state.confirm_amt = True; st.rerun()
         else:
             st.success(f"Amount Confirmed: ₱{d_amt:,.2f}")
             receipt = st.file_uploader("Upload GCash Receipt", type=['jpg', 'png', 'jpeg'])
@@ -126,26 +125,24 @@ else:
     # --- PAGE: WITHDRAW ---
     elif st.session_state.page == "wd":
         st.markdown("<div class='section-header'>📤 WITHDRAW FUNDS</div>", unsafe_allow_html=True)
-        # MINIMUM WITHDRAW 1000
-        w_amt = st.number_input("Amount to Withdraw", min_value=1000.0, max_value=data['wallet'], step=100.0)
+        w_amt = st.number_input("Amount (Min ₱1,000)", min_value=1000.0, max_value=max(1000.0, data['wallet']), step=100.0)
         w_method = st.selectbox("METHOD", ["GCASH", "BANK TRANSFER", "PAYMAYA"])
         w_info = st.text_input("ACCOUNT NAME & NUMBER")
         if st.button("SUBMIT WITHDRAWAL REQUEST"):
-            if w_info:
+            if data['wallet'] >= w_amt:
                 data['wallet'] -= w_amt
                 data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": f"WITHDRAW ({w_method})", "amt": w_amt, "info": w_info, "status": "PENDING_WD"})
                 update_user(name, data); st.success("Submitted!"); time.sleep(1); st.session_state.page = "main"; st.rerun()
+            else: st.error("Insufficient Balance")
         if st.button("⬅️ CANCEL"): st.session_state.page = "main"; st.rerun()
 
     # --- MAIN DASHBOARD ---
     else:
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("📥 DEPOSIT CAPITAL"): st.session_state.page = "dep"; st.rerun()
+            if st.button("📥 DEPOSIT"): st.session_state.page = "dep"; st.rerun()
         with c2:
-            if data['wallet'] >= 1000:
-                if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
-            else: st.button("📤 (Min ₱1,000)", disabled=True)
+            if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
 
         st.markdown("<div class='section-header'>⏳ ACTIVE 24H CYCLES (5% ROI)</div>", unsafe_allow_html=True)
         if not data.get('inv'): st.write("No active cycles.")
@@ -154,7 +151,6 @@ else:
                 end_t = datetime.fromisoformat(t['end'])
                 rem = end_t - now
                 st.markdown(f"<div style='background:#1c1e24; padding:15px; border-radius:15px; border:1px solid #3a3d46; margin-bottom:10px;'><div style='display:flex; justify-content:space-between;'><span>Principal: ₱{t['amt']:,}</span><span style='color:#0dcf70;'>+5% ROI</span></div><div style='color:#0dcf70; font-size:1.8rem; font-weight:bold; text-align:center;'>{str(rem).split('.')[0]}</div></div>", unsafe_allow_html=True)
-                # Capital is withdrawable anytime
                 if st.button(f"Pull Capital to Wallet (₱{t['amt']:,})", key=f"pull_{idx}"):
                     data['wallet'] += t['amt']
                     data['inv'].pop(idx)
@@ -163,7 +159,12 @@ else:
         st.markdown("<div class='section-header'>📜 TRANSACTION LOGS</div>", unsafe_allow_html=True)
         for t in reversed(data.get('tx', [])):
             s = t['status']
-            cls = "status-pending-dep" if s == "PENDING_DEP" else "status-success-dep" if s == "SUCCESSFUL_DEP" else "status-pending-wd" if s == "PENDING_WD" else "status-success-wd"
+            # FONT COLOR LOGIC
+            if s == "PENDING_DEP": cls = "status-yellow"
+            elif s == "SUCCESSFUL_DEP": cls = "status-blue"
+            elif s == "PENDING_WD": cls = "status-orange"
+            else: cls = "status-green"
+            
             st.markdown(f"**{t['date']}** | {t['type']} | ₱{t['amt']:,} | <span class='{cls}'>{s.replace('_', ' ')}</span>", unsafe_allow_html=True)
 
     if st.sidebar.button("LOGOUT"): st.session_state.user = None; st.session_state.page = "main"; st.rerun()
@@ -181,7 +182,7 @@ if st.session_state.is_boss:
         for idx, tx in enumerate(u_info.get('tx', [])):
             if "PENDING" in tx['status']:
                 s = tx['status']
-                cls = "status-pending-dep" if s == "PENDING_DEP" else "status-pending-wd"
+                cls = "status-yellow" if "DEP" in s else "status-orange"
                 st.markdown(f"<div style='padding:10px; border:1px solid #3a3d46; border-radius:10px; margin-bottom:10px;'>{tx['type']}: {u_name} | ₱{tx['amt']:,} | <span class='{cls}'>{s.replace('_', ' ')}</span></div>", unsafe_allow_html=True)
                 if "receipt_path" in tx:
                     if st.button(f"👁️ VIEW RECEIPT - {u_name}_{idx}"):
@@ -197,4 +198,4 @@ if st.session_state.is_boss:
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
 
 time.sleep(1); st.rerun()
-                    
+                
