@@ -35,7 +35,7 @@ def update_user(name, data):
         json.dump(reg, f, default=str)
     shutil.copy(REGISTRY_FILE, BACKUP_FILE)
 
-# --- 3. UI STYLING ---
+# --- 3. UI STYLING (Restored Dashboard Style) ---
 st.set_page_config(page_title="BPSM Official", layout="wide")
 st.markdown("""
     <style>
@@ -46,19 +46,15 @@ st.markdown("""
     .user-box { text-align: center; padding: 30px 10px; background: #111217; border-bottom: 1px solid #2a2b30; }
     .balance-val { color: #0dcf70; font-size: 3.5rem; font-weight: 900; margin: 5px 0; }
     .section-header { background: #1c1e24; padding: 12px 20px; margin-top: 25px; border-left: 5px solid #0dcf70; font-weight: bold; text-transform: uppercase; color: #0dcf70; }
-    .ticker-wrap { background: #000; color: #0dcf70; padding: 12px 0; position: fixed; bottom: 0; width: 100%; font-size: 0.85rem; border-top: 1px solid #2a2b30; z-index: 999; overflow: hidden; }
-    @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-    .ticker-text { display: inline-block; white-space: nowrap; animation: ticker 25s linear infinite; font-weight: bold; }
-    .stButton>button { border-radius: 12px !important; height: 3.5rem !important; font-weight: bold !important; width: 100%; }
     .roi-text { color: #0dcf70; font-weight: bold; font-size: 1.2rem; }
+    .stButton>button { border-radius: 12px !important; height: 3.5rem !important; font-weight: bold !important; width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 4. ACCESS CONTROL ---
 if st.session_state.user is None and not st.session_state.is_boss:
-    st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1><p>Automatic Weekly Payouts | 20% Weekly ROI</p></div>", unsafe_allow_html=True)
+    st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1><p>20% Weekly ROI</p></div>", unsafe_allow_html=True)
     t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
-    
     with t1:
         ln = st.text_input("INVESTOR NAME", key="login_name").upper()
         lp = st.text_input("SECURE PIN", type="password", max_chars=6, key="login_pin")
@@ -67,51 +63,40 @@ if st.session_state.user is None and not st.session_state.is_boss:
             if ln in reg and reg[ln].get('pin') == lp:
                 st.session_state.user = ln
                 st.rerun()
-            else:
-                st.error("Invalid Credentials")
-    
+            else: st.error("Invalid Credentials")
     with t2:
         rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
         rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6, key="reg_pin")
         referrer = st.text_input("REFERRER NAME (REQUIRED)", key="reg_ref").upper()
         if st.button("CREATE ACCOUNT"):
             reg = load_registry()
-            if not referrer: st.error("Referrer required.")
-            elif referrer not in reg: st.error("Referrer not found.")
+            if not referrer or referrer not in reg: st.error("Valid Referrer required.")
             elif rn in reg: st.error("Already registered.")
             elif rn and len(rp) == 6:
-                new_data = {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": referrer, "bonus_claimed": False}
-                update_user(rn, new_data)
-                st.success("Account Created!")
-                time.sleep(1.5); st.rerun()
-    
+                update_user(rn, {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": referrer, "bonus_claimed": False})
+                st.success("Account Created!"); time.sleep(1.5); st.rerun()
     st.divider()
     with st.expander("MASTER ACCESS"):
-        key = st.text_input("Admin Key", type="password", key="admin_key")
-        if st.button("ENTER CONTROL PANEL"):
-            if key == "Orange01!":
-                st.session_state.is_boss = True
-                st.rerun()
+        if st.text_input("Admin Key", type="password", key="admin_key") == "Orange01!":
+            if st.button("ENTER CONTROL PANEL"): st.session_state.is_boss = True; st.rerun()
     st.stop()
 
-# --- 5. INVESTOR PORTAL ---
+# --- 5. INVESTOR PORTAL (Real-Time ROI Dashboard) ---
 if st.session_state.user:
     name = st.session_state.user
     reg = load_registry()
     data = reg[name]
     now = datetime.now()
 
-    # ROI Processor
+    # ROI Payout Logic
     payout_triggered = False
     for i in data.get('inv', []):
         try:
-            end_time = datetime.fromisoformat(i['end'])
-            if now >= end_time: 
-                profit_amt = i['amt'] * 0.20
-                data['wallet'] += profit_amt
-                i['start'] = now.isoformat()
-                i['end'] = (now + timedelta(days=7)).isoformat()
-                data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WEEKLY ROI CREDIT", "amt": profit_amt, "status": "SUCCESSFUL"})
+            if now >= datetime.fromisoformat(i['end']): 
+                profit = i['amt'] * 0.20
+                data['wallet'] += profit
+                i['start'], i['end'] = now.isoformat(), (now + timedelta(days=7)).isoformat()
+                data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WEEKLY ROI", "amt": profit, "status": "SUCCESSFUL"})
                 payout_triggered = True
         except: continue
     if payout_triggered: update_user(name, data); st.rerun()
@@ -146,31 +131,32 @@ if st.session_state.user:
         with c2: 
             if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
 
-        # Referral Section
+        # My Referrals
         st.markdown("<div class='section-header'>👥 MY REFERRALS</div>", unsafe_allow_html=True)
-        for u_name, u_info in reg.items():
-            if u_info.get('ref_by') == name:
-                first_dep = 0.0
-                for tx in u_info.get('tx', []):
-                    if tx['type'] == "DEPOSIT" and tx['status'] == "SUCCESSFUL_DEP":
-                        first_dep = tx['amt']
-                        break
-                
-                bonus_amt = first_dep * 0.20
-                if first_dep > 0:
-                    status = u_info.get('bonus_claimed', "NOT_CLAIMED")
-                    if status == "APPROVED": st.write(f"✅ {u_name} | Bonus ₱{bonus_amt:,.2f} Claimed")
-                    elif status == "PENDING": st.write(f"⏳ {u_name} | Bonus PENDING Approval")
-                    else:
-                        if st.button(f"CLAIM 20% BONUS FROM {u_name} (₱{bonus_amt:,.2f})"):
-                            u_info['bonus_claimed'] = "PENDING"
-                            update_user(u_name, u_info); st.rerun()
-                else: st.write(f"👤 {u_name} | No Deposit Yet")
+        for u_n, u_i in reg.items():
+            if u_i.get('ref_by') == name:
+                f_d = next((t['amt'] for t in u_i.get('tx', []) if t['type']=="DEPOSIT" and t['status']=="SUCCESSFUL_DEP"), 0)
+                st.write(f"👤 {u_n} | {'No Deposit' if f_d == 0 else f'First Deposit: ₱{f_d:,.1f}'}")
 
+        # RESTORED: REAL-TIME ACTIVE CYCLES
         st.markdown("<div class='section-header'>⏳ ACTIVE CYCLES</div>", unsafe_allow_html=True)
-        for idx, t in enumerate(reversed(data.get('inv', []))):
-            rem = datetime.fromisoformat(t['end']) - now
-            st.write(f"Capital: ₱{t['amt']:,} | Time Left: {str(rem).split('.')[0]}")
+        if not data.get('inv'): st.write("No active interest running.")
+        else:
+            for idx, t in enumerate(reversed(data['inv'])):
+                try:
+                    start_t, end_t = datetime.fromisoformat(t['start']), datetime.fromisoformat(t['end'])
+                    rem, elapsed = end_t - now, now - start_t
+                    running_roi = min(t['amt']*0.20, (t['amt']*0.20/10080)*(elapsed.total_seconds()/60))
+                    st.markdown(f"""
+                    <div style='background:#1c1e24; padding:15px; border-radius:15px; border:1px solid #3a3d46; margin-bottom:10px;'>
+                        <div style='display:flex; justify-content:space-between;'>
+                            <span style='font-weight:bold;'>Capital: ₱{t['amt']:,}</span>
+                            <span class='roi-text'>ROI: ₱{running_roi:,.2f}</span>
+                        </div>
+                        <div style='color:#0dcf70; font-size:1.8rem; font-weight:bold; text-align:center;'>{str(rem).split('.')[0]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                except: continue
 
     if st.sidebar.button("LOGOUT"): st.session_state.user = None; st.rerun()
 
@@ -179,37 +165,10 @@ elif st.session_state.is_boss:
     all_users = load_registry()
     st.markdown("### 👑 MASTER CONTROL")
 
-    # --- PENDING REFERRAL BONUSES ---
-    st.markdown("<div class='section-header'>🎁 PENDING REFERRAL BONUSES</div>", unsafe_allow_html=True)
-    for u_name, u_info in all_users.items():
-        if u_info.get('bonus_claimed') == "PENDING":
-            ref = u_info.get('ref_by')
-            f_dep = next((t['amt'] for t in u_info.get('tx', []) if t['type']=="DEPOSIT" and t['status']=="SUCCESSFUL_DEP"), 0)
-            b_amt = f_dep * 0.20
-            if st.button(f"APPROVE ₱{b_amt:,.2f} for {ref} (Invited {u_name})"):
-                all_users[ref]['wallet'] += b_amt
-                all_users[u_name]['bonus_claimed'] = "APPROVED"
-                update_user(u_name, all_users[u_name])
-                update_user(ref, all_users[ref]); st.rerun()
+    st.markdown("<div class='section-header'>📋 INVESTOR DATABASE</div>", unsafe_allow_html=True)
+    db = [{"NAME": u, "PIN": i.get('pin'), "WALLET": f"₱{i.get('wallet',0):,.2f}", "REFERRER": i.get('ref_by','DIRECT')} for u,i in all_users.items()]
+    st.table(pd.DataFrame(db))
 
-    # --- RESTORED: INVESTOR DATABASE ---
-    st.markdown("<div class='section-header'>📋 INVESTOR DATABASE (NAMES, PINS, REFERRALS)</div>", unsafe_allow_html=True)
-    db_list = [{"NAME": u, "PIN": i.get('pin'), "WALLET": f"₱{i.get('wallet',0):,.2f}", "REFERRER": i.get('ref_by','DIRECT')} for u,i in all_users.items()]
-    st.table(pd.DataFrame(db_list))
-
-    # --- RESTORED: TRANSACTION HISTORY ---
-    with st.expander("🔍 VIEW ALL INDIVIDUAL TRANSACTIONS"):
-        for u_name, u_info in all_users.items():
-            st.write(f"**{u_name}**"); st.json(u_info.get('tx', [])); st.divider()
-
-    # --- RESTORED: REAL-TIME ROI TRACKER ---
-    st.markdown("<div class='section-header'>📈 REAL-TIME INVESTOR ROI</div>", unsafe_allow_html=True)
-    for u_name, u_info in all_users.items():
-        for inv in u_info.get('inv', []):
-            rem = datetime.fromisoformat(inv['end']) - datetime.now()
-            st.write(f"👤 {u_name} | Capital: ₱{inv['amt']:,} | ⏳ {str(rem).split('.')[0]}")
-
-    # --- PENDING DEPOSITS/WITHDRAWALS ---
     st.markdown("<div class='section-header'>🔔 PENDING ACTIONS</div>", unsafe_allow_html=True)
     for u_name, u_info in all_users.items():
         for idx, tx in enumerate(u_info.get('tx', [])):
