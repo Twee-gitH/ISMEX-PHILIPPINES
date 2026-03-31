@@ -52,7 +52,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. ACCESS CONTROL ---
+# --- 4. ACCESS CONTROL (UPDATED WITH REFERRER CHECK) ---
 if st.session_state.user is None and not st.session_state.is_boss:
     st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1></div>", unsafe_allow_html=True)
     t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
@@ -69,13 +69,24 @@ if st.session_state.user is None and not st.session_state.is_boss:
         rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
         rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6, key="reg_pin")
         referrer = st.text_input("REFERRER NAME (REQUIRED)", key="reg_ref").upper()
+        
         if st.button("CREATE ACCOUNT"):
             reg = load_registry()
-            if not referrer or referrer not in reg: st.error("Valid Referrer required.")
-            elif rn in reg: st.error("Already registered.")
+            
+            # Check if Referrer exists
+            if not referrer or referrer not in reg:
+                st.error("❌ Valid Referrer required.")
+            
+            # CHECK: Is the Referrer actually an active investor?
+            elif not reg[referrer].get('inv'):
+                st.error(f"❌ {referrer} IS NOT AN INVESTOR. Only active investors can refer.")
+                
+            elif rn in reg:
+                st.error("❌ Already registered.")
+                
             elif rn and len(rp) == 6:
                 update_user(rn, {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": referrer, "bonus_claimed": False})
-                st.success("Account Created!"); time.sleep(1.5); st.rerun()
+                st.success("✅ Account Created!"); time.sleep(1.5); st.rerun()
     st.stop()
 
 # --- 5. INVESTOR PORTAL ---
@@ -188,9 +199,11 @@ if st.session_state.user:
                         first_dep_amt = tx['amt']
                         break
                 
+                status_text = f"₱{first_dep_amt:,.2f}" if first_dep_amt > 0 else "NOT INVESTOR YET"
+                
                 my_refs_list.append({
                     "INVITEE": u_name,
-                    "1ST DEPOSIT": f"₱{first_dep_amt:,.2f}",
+                    "1ST DEPOSIT": status_text,
                     "BONUS (20%)": first_dep_amt * 0.20
                 })
         
@@ -199,13 +212,14 @@ if st.session_state.user:
             total_pending_bonus = sum([r["BONUS (20%)"] for r in my_refs_list])
             
             if not data.get('bonus_claimed', False):
-                st.write(f"### Available Bonus: ₱{total_pending_bonus:,.2f}")
-                if st.button("🎁 CLAIM 20% REFERRAL BONUS"):
-                    data['wallet'] += total_pending_bonus
-                    data['bonus_claimed'] = True
-                    data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "REFERRAL BONUS", "amt": total_pending_bonus, "status": "SUCCESSFUL"})
-                    update_user(name, data)
-                    st.success("Bonus added to balance!"); time.sleep(1); st.rerun()
+                if total_pending_bonus > 0:
+                    st.write(f"### Available Bonus: ₱{total_pending_bonus:,.2f}")
+                    if st.button("🎁 CLAIM 20% REFERRAL BONUS"):
+                        data['wallet'] += total_pending_bonus
+                        data['bonus_claimed'] = True
+                        data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "REFERRAL BONUS", "amt": total_pending_bonus, "status": "SUCCESSFUL"})
+                        update_user(name, data)
+                        st.success("Bonus added to balance!"); time.sleep(1); st.rerun()
             else:
                 st.success("✅ Bonuses already claimed.")
         else:
