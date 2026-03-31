@@ -56,7 +56,6 @@ st.markdown("""
 # --- 4. ACCESS CONTROL ---
 if st.session_state.user is None and not st.session_state.is_boss:
     st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1><p>Automatic 24-Hour Payouts | 5% Daily ROI</p></div>", unsafe_allow_html=True)
-    
     t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
     with t1:
         ln = st.text_input("INVESTOR NAME").upper()
@@ -77,8 +76,7 @@ if st.session_state.user is None and not st.session_state.is_boss:
                 update_user(rn, new_data)
                 st.success("Account Created!")
                 time.sleep(1.5)
-                st.rerun() # Forces refresh to jump back to Sign-In tab
-    
+                st.rerun()
     st.divider()
     with st.expander("MASTER ACCESS"):
         key = st.text_input("Admin Key", type="password")
@@ -108,7 +106,6 @@ elif st.session_state.user:
                 payout_triggered = True
             else: active_inv.append(i)
         except: continue
-    
     if payout_triggered:
         data['inv'] = active_inv
         update_user(name, data); st.rerun()
@@ -144,26 +141,38 @@ elif st.session_state.user:
                 update_user(name, data); st.session_state.page = "main"; st.rerun()
         if st.button("⬅️ CANCEL"): st.session_state.page = "main"; st.rerun()
 
+    # --- NEW RE-INVEST PAGE ---
+    elif st.session_state.page == "reinvest":
+        st.markdown("<div class='section-header'>♻️ RE-INVEST FROM BALANCE</div>", unsafe_allow_html=True)
+        st.write(f"Current Balance: ₱{data['wallet']:,.2f}")
+        r_amt = st.number_input("Re-invest Amount (Min ₱1,000)", min_value=1000.0, max_value=max(1000.0, data['wallet']), step=100.0)
+        if st.button("START 24H CYCLE"):
+            if data['wallet'] >= r_amt:
+                data['wallet'] -= r_amt
+                st_t = datetime.now()
+                data.setdefault('inv', []).append({"amt": r_amt, "start": st_t.isoformat(), "end": (st_t + timedelta(hours=24)).isoformat()})
+                data.setdefault('tx', []).append({"date": st_t.strftime("%Y-%m-%d %H:%M"), "type": "RE-INVESTMENT", "amt": r_amt, "status": "SUCCESSFUL_DEP"})
+                update_user(name, data)
+                st.session_state.page = "main"; st.success("Investment Started!"); st.rerun()
+        if st.button("⬅️ BACK"): st.session_state.page = "main"; st.rerun()
+
     else:
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         with c1: 
             if st.button("📥 DEPOSIT"): st.session_state.page = "dep"; st.rerun()
         with c2: 
             if st.button("📤 WITHDRAW"): st.session_state.page = "wd"; st.rerun()
+        with c3:
+            if st.button("♻️ RE-INVEST"): st.session_state.page = "reinvest"; st.rerun()
 
-        # --- ROI TICKER RESTORED ---
         st.markdown("<div class='section-header'>⏳ ACTIVE 24H CYCLES (5% ROI)</div>", unsafe_allow_html=True)
         if not data.get('inv'): st.write("No active interest running.")
         else:
             for idx, t in enumerate(data['inv']):
                 try:
-                    start_t = datetime.fromisoformat(t['start'])
-                    end_t = datetime.fromisoformat(t['end'])
-                    rem = end_t - now
-                    elapsed = now - start_t
-                    mins_passed = elapsed.total_seconds() / 60
-                    # Ticking ROI calculation: (amt * 0.05 / 1440 mins) * elapsed mins
-                    running_roi = min(t['amt']*0.05, (t['amt']*0.05/1440)*mins_passed)
+                    start_t, end_t = datetime.fromisoformat(t['start']), datetime.fromisoformat(t['end'])
+                    rem, elapsed = end_t - now, now - start_t
+                    running_roi = min(t['amt']*0.05, (t['amt']*0.05/1440)*(elapsed.total_seconds()/60))
                     st.markdown(f"<div style='background:#1c1e24; padding:15px; border-radius:15px; border:1px solid #3a3d46; margin-bottom:10px;'><div style='display:flex; justify-content:space-between;'><span>Capital: ₱{t['amt']:,}</span><span class='roi-text'>Real-time ROI: ₱{running_roi:,.2f}</span></div><div style='color:#0dcf70; font-size:1.8rem; font-weight:bold; text-align:center;'>{str(rem).split('.')[0]}</div></div>", unsafe_allow_html=True)
                 except: continue
 
@@ -177,17 +186,15 @@ elif st.session_state.user:
 if st.session_state.is_boss:
     all_users = load_registry()
     st.markdown("### 👑 MASTER CONTROL")
-    
     st.markdown("<div class='section-header'>📈 REAL-TIME INVESTOR ROI</div>", unsafe_allow_html=True)
     for u_name, u_info in all_users.items():
         if u_info.get('inv'):
-            for idx, inv in enumerate(u_info['inv']):
-                if 'start' not in inv: continue # THE KEYERROR FIX
+            for inv in u_info['inv']:
+                if 'start' not in inv: continue
                 try:
                     rem = datetime.fromisoformat(inv['end']) - datetime.now()
                     st.write(f"👤 {u_name} | Capital: ₱{inv['amt']:,} | ⏳ {str(rem).split('.')[0]}")
                 except: continue
-
     st.markdown("<div class='section-header'>🔔 ALL TRANSACTIONS & REQUESTS</div>", unsafe_allow_html=True)
     for u_name, u_info in all_users.items():
         for idx, tx in enumerate(u_info.get('tx', [])):
@@ -201,6 +208,5 @@ if st.session_state.is_boss:
                 if st.button(f"Approve ₱{tx['amt']:,} Withdrawal: {u_name}"):
                     all_users[u_name]['tx'][idx]['status'] = "SUCCESSFUL_WD"
                     update_user(u_name, all_users[u_name]); st.rerun()
-
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
         
