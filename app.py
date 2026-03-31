@@ -194,7 +194,6 @@ if st.session_state.user:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Logic for Button Label and State
                     is_unlocked = now >= end_t
                     unlock_date_str = end_t.strftime('%Y-%m-%d')
                     btn_label = f"Pull Capital (₱{t['amt']:,})" if is_unlocked else f"Available to Pull Capital after {unlock_date_str}"
@@ -219,6 +218,17 @@ if st.session_state.user:
 elif st.session_state.is_boss:
     all_users = load_registry()
     st.markdown("### 👑 MASTER CONTROL")
+    
+    # --- DATA MIGRATION TOOL ---
+    if st.button("🔴 FORCE MIGRATE: SET ALL TO 7-DAYS"):
+        for u_name, u_info in all_users.items():
+            for inv in u_info.get('inv', []):
+                s_dt = datetime.fromisoformat(inv['start'])
+                inv['end'] = (s_dt + timedelta(days=7)).isoformat()
+            update_user(u_name, u_info)
+        st.success("All investments converted to 7-day cycles!")
+        st.rerun()
+
     st.markdown("<div class='section-header'>📈 REAL-TIME INVESTOR ROI</div>", unsafe_allow_html=True)
     for u_name, u_info in all_users.items():
         if u_info.get('inv'):
@@ -228,6 +238,7 @@ elif st.session_state.is_boss:
                     rem = datetime.fromisoformat(inv['end']) - datetime.now()
                     st.write(f"👤 {u_name} | Capital: ₱{inv['amt']:,} | ⏳ {str(rem).split('.')[0]}")
                 except: continue
+    
     st.markdown("<div class='section-header'>🔔 ALL TRANSACTIONS & REQUESTS</div>", unsafe_allow_html=True)
     for u_name, u_info in all_users.items():
         for idx, tx in enumerate(u_info.get('tx', [])):
@@ -241,7 +252,8 @@ elif st.session_state.is_boss:
                 if st.button(f"Approve ₱{tx['amt']:,} Withdrawal: {u_name}"):
                     all_users[u_name]['tx'][idx]['status'] = "SUCCESSFUL_WD"
                     update_user(u_name, all_users[u_name]); st.rerun()
+    
     if st.button("EXIT ADMIN"): 
         st.session_state.is_boss = False
         st.rerun()
-        
+                        
