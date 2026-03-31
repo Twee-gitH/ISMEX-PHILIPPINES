@@ -55,40 +55,46 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. ACCESS CONTROL ---
+# --- 4. ACCESS CONTROL (FIXED FOR REFRESH) ---
 if st.session_state.user is None and not st.session_state.is_boss:
     st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1><p>Automatic 24-Hour Payouts | 5% Daily ROI</p></div>", unsafe_allow_html=True)
     t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
+    
     with t1:
-        ln = st.text_input("INVESTOR NAME").upper()
-        lp = st.text_input("SECURE PIN", type="password", max_chars=6)
+        ln = st.text_input("INVESTOR NAME", key="login_name").upper()
+        lp = st.text_input("SECURE PIN", type="password", max_chars=6, key="login_pin")
         if st.button("VERIFY & ACCESS"):
             reg = load_registry()
             if ln in reg and reg[ln].get('pin') == lp:
                 st.session_state.user = ln
                 st.rerun()
+            else:
+                st.error("Invalid Credentials")
+    
     with t2:
-        rn = st.text_input("FULL LEGAL NAME").upper()
-        rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
-        referrer = st.text_input("REFERRER NAME (OPTIONAL)").upper()
+        rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
+        rp = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6, key="reg_pin")
+        referrer = st.text_input("REFERRER NAME (OPTIONAL)", key="reg_ref").upper()
         if st.button("CREATE ACCOUNT"):
             reg = load_registry()
             if rn and len(rp) == 6:
                 new_data = {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": referrer if referrer in reg else None, "ref_bonus_requested": False, "ref_bonus_claimed": False, "ref_earnings": 0.0}
                 update_user(rn, new_data)
-                st.success("Account Created!")
+                st.success("Account Created! Please Sign-In.")
                 time.sleep(1.5)
                 st.rerun()
+    
     st.divider()
     with st.expander("MASTER ACCESS"):
-        key = st.text_input("Admin Key", type="password")
+        key = st.text_input("Admin Key", type="password", key="admin_key")
         if st.button("ENTER CONTROL PANEL"):
             if key == "Orange01!":
                 st.session_state.is_boss = True
                 st.rerun()
+    st.stop() # Stops execution here so it doesn't show the dashboard behind the login
 
 # --- 5. INVESTOR PORTAL ---
-elif st.session_state.user:
+if st.session_state.user:
     name = st.session_state.user
     reg = load_registry()
     data = reg[name]
@@ -150,7 +156,7 @@ elif st.session_state.user:
                 st_t = datetime.now()
                 data.setdefault('inv', []).append({"amt": r_amt, "start": st_t.isoformat(), "end": (st_t + timedelta(hours=24)).isoformat()})
                 data.setdefault('tx', []).append({"date": st_t.strftime("%Y-%m-%d %H:%M"), "type": "RE-INVESTMENT", "amt": r_amt, "status": "SUCCESSFUL_DEP"})
-                update_user(name, data); st.session_state.page = "main"; st.rerun()
+                update_user(name, data); st.session_state.page = "main"; st.success("Investment Started!"); st.rerun()
         if st.button("⬅️ BACK"): st.session_state.page = "main"; st.rerun()
 
     else:
@@ -199,10 +205,13 @@ elif st.session_state.user:
         for t in reversed(data.get('tx', [])):
             st.write(f"{t['date']} | {t['type']} | ₱{t['amt']:,} | {t['status']}")
 
-    if st.sidebar.button("LOGOUT"): st.session_state.user = None; st.rerun()
+    if st.sidebar.button("LOGOUT"): 
+        st.session_state.user = None
+        st.session_state.page = "main"
+        st.rerun()
 
 # --- 6. BOSS PANEL ---
-if st.session_state.is_boss:
+elif st.session_state.is_boss:
     all_users = load_registry()
     st.markdown("### 👑 MASTER CONTROL")
     st.markdown("<div class='section-header'>📈 REAL-TIME INVESTOR ROI</div>", unsafe_allow_html=True)
@@ -227,5 +236,7 @@ if st.session_state.is_boss:
                 if st.button(f"Approve ₱{tx['amt']:,} Withdrawal: {u_name}"):
                     all_users[u_name]['tx'][idx]['status'] = "SUCCESSFUL_WD"
                     update_user(u_name, all_users[u_name]); st.rerun()
-    if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-                        
+    if st.button("EXIT ADMIN"): 
+        st.session_state.is_boss = False
+        st.rerun()
+        
