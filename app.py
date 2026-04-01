@@ -94,13 +94,13 @@ if st.session_state.user is None and not st.session_state.is_boss:
             if st.button("ENTER BOSS MODE"): st.session_state.is_boss = True; st.rerun()
     st.stop()
 
-# --- 4. INVESTOR DASHBOARD ---
+# --- FULL CORRECTED INVESTOR DASHBOARD SECTION ---
 if st.session_state.user:
     name = st.session_state.user
     data = load_registry().get(name)
     now = datetime.now()
 
-    # ROI Calculation
+    # 1. ROI ENGINE
     MINUTE_RATE = (0.20 / 7) / 1440 
     changed = False
     for i in data.get('inv', []):
@@ -113,7 +113,7 @@ if st.session_state.user:
             i.update({"start": now.isoformat(), "end": (now + timedelta(days=7)).isoformat(), "roi_paid": False}); changed = True
     if changed: update_user(name, data); st.rerun()
 
-    # Header Section
+    # 2. BALANCE & NEWS
     st.markdown(f"""
         <div class="balance-card">
             <p class="balance-label">WITHDRAWABLE BALANCE</p>
@@ -121,11 +121,11 @@ if st.session_state.user:
         </div>
         <div class="news-box">
             <small style="color:#ce1126; font-weight:bold;">LIVE MARKET UPDATE:</small><br>
-            <span style="font-size:14px; color:#fff;">{random.choice(NEWS_HEADLINES)}</span>
+            <span style="font-size:14px; color:#fff;">📈 Market activity is stable. Blue-chip stocks showing steady gains.</span>
         </div>
     """, unsafe_allow_html=True)
 
-    # Active Cycles (cite: 8820.jpg, 8823.jpg)
+    # 3. ACTIVE CYCLES (MATCHES 8823.jpg)
     st.markdown("<div class='section-header'>⌛ ACTIVE CYCLES</div>", unsafe_allow_html=True)
     inv_list = data.get('inv', [])
     for idx, t in enumerate(reversed(inv_list)):
@@ -144,19 +144,49 @@ if st.session_state.user:
             </div>
         """, unsafe_allow_html=True)
 
-        btn_label = f"AVAILABLE TO PULL OUT CAPITAL FROM {et_t.strftime('%b %d, %I:%M %p')} TO {grace_end.strftime('%I:%M %p')}"
+        btn_label = f"AVAILABLE TO PULL OUT CAPITAL FROM {et_t.strftime('%I:%M %p')} TO {grace_end.strftime('%I:%M %p')}"
         if et_t <= now < grace_end:
-            if st.button(f"✅ PULL CAPITAL (₱{t['amt']:,})", key=f"p{actual_idx}"):
+            if st.button(f"✅ PULL CAPITAL (₱{t['amt']:,})", key=f"active_p_{actual_idx}"):
                 data['wallet'] += t['amt']; data['inv'].pop(actual_idx); update_user(name, data); st.rerun()
         else:
-            st.button(btn_label, key=f"lock_{actual_idx}", disabled=True)
+            st.button(btn_label, key=f"active_lock_{actual_idx}", disabled=True)
 
-            # --- END OF ACTIVE CYCLES LOOP ---
-        if et_t <= now < grace_end:
-            if st.button(f"✅ PULL CAPITAL (₱{t['amt']:,})", key=f"p{actual_idx}"):
-                data['wallet'] += t['amt']; data['inv'].pop(actual_idx); update_user(name, data); st.rerun()
-        else:
-            st.button(btn_label, key=f"lock_{actual_idx}", disabled=True)
+    # 4. REFERRAL COMMISSIONS (MATCHES 8824.jpg)
+    all_u = load_registry()
+    referrals = {u_n: u_i for u_n, u_i in all_u.items() if u_i.get('ref_by') == name}
+
+    for u_n, u_i in referrals.items():
+        # Find 1st successful deposit
+        f_dep = next((tx['amt'] for tx in u_i.get('tx', []) if tx['status'] == "SUCCESSFUL_DEP"), 0)
+        
+        if f_dep > 0:
+            comm = f_dep * 0.20
+            b_status = data.get('bonus_status', {}).get(u_n, "AVAILABLE")
+            
+            # Header repeats for each block as per 8824.jpg
+            st.markdown("<div class='section-header'>👥 REFERRAL COMMISSIONS</div>", unsafe_allow_html=True)
+            
+            st.markdown(f"""
+                <div class='user-box'>
+                    <b>Capital: ₱{f_dep:,.1f}</b><br>
+                    <span class='roi-text'>Accumulated ROI: ₱{comm:,.4f}</span><br>
+                    <span class='meta-label'>Total to Receive: ₱{comm:,.2f}</span><br><br>
+                    <b>Invitee:</b> {u_n}<br>
+                    <b>Registered:</b> {u_i.get('reg_date', 'N/A')}<br>
+                    <b style='color:#ff4b4b;'>⌛ STATUS: {b_status}</b>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Unique keys for referral buttons to prevent 'DuplicateElementKey' crash
+            if b_status == "AVAILABLE":
+                if st.button(f"REQUEST BONUS FOR {u_n}", key=f"ref_req_{u_n}"):
+                    data.setdefault('bonus_status', {})[u_n] = "REQUESTED"; update_user(name, data); st.rerun()
+            else:
+                st.button(f"BONUS {b_status}", key=f"ref_status_{u_n}", disabled=True)
+
+    if st.button("LOGOUT"): 
+        st.session_state.user = None; st.rerun()
+        
 
         # 4. REFERRAL COMMISSIONS SECTION
     all_u = load_registry()
