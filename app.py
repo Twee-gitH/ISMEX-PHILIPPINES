@@ -57,16 +57,22 @@ if st.session_state.user is None and not st.session_state.is_boss:
     st.title("BAGONG PILIPINAS STOCK MARKET")
     t1, t2 = st.tabs(["SIGN-IN", "REGISTER"])
     with t1:
-        ln, lp = st.text_input("NAME").upper(), st.text_input("PIN", type="password")
+        ln_input = st.text_input("NAME")
+        lp = st.text_input("PIN", type="password")
         if st.button("LOGIN"):
+            ln = ln_input.upper() # Sync with registration
             reg = load_registry()
             if ln in reg and str(reg[ln].get('pin')) == str(lp):
-                st.session_state.user = ln; st.rerun()
+                st.session_state.user = ln
+                st.rerun()
     with t2:
-        rn, rp, ref = st.text_input("FULL NAME", key="r1").upper(), st.text_input("PIN", type="password", key="r2"), st.text_input("REFERRER", key="r3").upper()
+        rn_input = st.text_input("FULL NAME", key="r1")
+        rp = st.text_input("PIN", type="password", key="r2")
+        ref = st.text_input("REFERRER", key="r3").upper()
         if st.button("REGISTER ACCOUNT"):
+            rn = rn_input.upper() # Store as Uppercase
             update_user(rn, {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": ref, "reg_date": datetime.now().strftime("%Y-%m-%d")})
-            st.success("SUCCESSFUL"); st.rerun()
+            st.success("SUCCESSFUL - PLEASE LOGIN")
     with st.expander("🔐 ADMIN"):
         if st.text_input("ADMIN PIN", type="password") == "0102030405":
             if st.button("ENTER BOSS MODE"): st.session_state.is_boss = True; st.rerun()
@@ -88,38 +94,56 @@ if st.session_state.user:
         calc_now = min(now, et_t)
         i['accumulated_roi'] = max(0, i['amt'] * (((calc_now - st_t).total_seconds() / 60) * MINUTE_RATE))
         if now >= et_t and not i.get('roi_paid', False):
-            data['wallet'] += (i['amt'] * 0.20); i['roi_paid'] = True; changed = True
-    if changed: update_user(name, data); st.rerun()
+            data['wallet'] += (i['amt'] * 0.20)
+            i['roi_paid'] = True
+            changed = True
+    if changed: 
+        update_user(name, data)
+        st.rerun()
 
     st.markdown(f'<div class="balance-card"><p class="balance-label">WITHDRAWABLE BALANCE</p><p class="balance-val">₱{data["wallet"]:,.2f}</p></div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
 
     # ==========================================
-    # BLOCK 5: DEPOSIT (FIXED HIGHLIGHT LOGIC)
+    # BLOCK 5: DEPOSIT (FIXED LOGIC & TARGETED CSS)
     # ==========================================
     with c1:
         with st.expander("📥 DEPOSIT", expanded=True):
             d_amt = st.number_input("Amount (Min 1000)", 1000, step=500, key="dep_amt_input")
-            file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'], key="dep_file_reg")
             
-            if file is not None:
-                # Highlight button green
-                st.markdown('<style>div.stButton > button:first-child { background-color: #00ff88 !important; color: black !important; font-weight: bold; }</style>', unsafe_allow_html=True)
-                if st.button("CONFIRM DEPOSIT", key="confirm_dep_btn"):
-                    if 'tx' not in data: data['tx'] = []
-                    data['tx'].append({
-                        "type": "DEP",
-                        "amt": d_amt,
-                        "status": "PENDING",
-                        "receipt": file.name,
-                        "date": datetime.now().strftime("%Y-%m-%d %I:%M %p")
-                    })
-                    update_user(name, data)
-                    st.success(f"Deposit of ₱{d_amt:,} sent to Admin!")
-                    st.rerun()
+            # Step 1: File uploader only appears after amount is verified
+            if d_amt >= 1000:
+                file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'], key="dep_file_reg")
+                
+                if file is not None:
+                    # Targeted CSS: Only turns the button inside this specific expander green
+                    st.markdown("""
+                        <style>
+                        div[data-testid="stExpander"]:contains("DEPOSIT") button {
+                            background-color: #00ff88 !important;
+                            color: black !important;
+                            font-weight: bold !important;
+                        }
+                        </style>
+                        """, unsafe_allow_html=True)
+                        
+                    if st.button("CONFIRM DEPOSIT", key="confirm_dep_btn"):
+                        if 'tx' not in data: data['tx'] = []
+                        data['tx'].append({
+                            "type": "DEP",
+                            "amt": d_amt,
+                            "status": "PENDING",
+                            "receipt": file.name,
+                            "date": datetime.now().strftime("%Y-%m-%d %I:%M %p")
+                        })
+                        update_user(name, data)
+                        st.success(f"Deposit of ₱{d_amt:,} sent to Admin!")
+                        st.rerun()
+                else:
+                    st.info("Upload receipt to enable confirm button.")
             else:
-                st.button("UPLOAD RECEIPT TO CONFIRM", disabled=True)
+                st.warning("Minimum ₱1,000 required.")
 
     # ==========================================
     # BLOCK 6: WITHDRAW & REINVEST
@@ -202,4 +226,4 @@ elif st.session_state.is_boss:
                         u_d.setdefault('inv', []).append({"amt": tx['amt'], "start": datetime.now().isoformat(), "end": (datetime.now() + timedelta(days=7)).isoformat(), "roi_paid": False})
                     update_user(u_n, u_d); st.rerun()
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-    
+                        
