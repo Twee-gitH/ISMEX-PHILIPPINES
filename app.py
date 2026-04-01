@@ -39,10 +39,10 @@ st.set_page_config(page_title="BPSM Official", layout="wide")
 
 st.markdown("""
     <style>
-    /* Force names to Uppercase */
+    /* Force text boxes to look like CAPS LOCK */
     input[type="text"] { text-transform: uppercase !important; }
     
-    /* ALLOW passwords to be lowercase (Case-Sensitive Fix) */
+    /* EXCEPTION: Passwords allow small letters */
     input[type="password"] {
         text-transform: none !important;
         -webkit-text-transform: none !important;
@@ -74,11 +74,11 @@ if st.session_state.user is None and not st.session_state.is_boss:
             else: st.error("❌ INVALID CREDENTIALS")
             
     with t2:
-        st.warning("⚠️ **IMPORTANT:** USE YOUR LEGAL FIRST & LAST NAME.")
+        st.warning("⚠️ **IMPORTANT:** PLEASE INPUT ONLY YOUR LEGAL FIRST NAME AND LAST NAME.")
         rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
         rp1 = st.text_input("CREATE PIN", type="password", key="reg_pin1")
         rp2 = st.text_input("CONFIRM PIN", type="password", key="reg_pin2")
-        referrer = st.text_input("REFERRER NAME", key="reg_ref").upper()
+        referrer = st.text_input("REFERRER NAME (ACTIVE INVESTOR)", key="reg_ref").upper()
         
         if st.button("CREATE ACCOUNT"):
             reg = load_registry()
@@ -168,8 +168,9 @@ if st.session_state.user:
             if st.button("♻️ RE-INVEST"): st.session_state.page = "reinvest"; st.rerun()
         
         st.markdown("<div class='section-header'>⏳ ACTIVE CYCLES</div>", unsafe_allow_html=True)
-        for idx, t in enumerate(reversed(data.get('inv', []))):
-            actual_idx = len(data['inv']) - 1 - idx
+        inv_list = data.get('inv', [])
+        for idx, t in enumerate(reversed(inv_list)):
+            actual_idx = len(inv_list) - 1 - idx
             end_t = datetime.fromisoformat(t['end'])
             st.markdown(f"<div class='user-box' style='text-align:left; padding:10px;'><p class='meta-text'>Maturity: {end_t.strftime('%Y-%m-%d %I:%M %p')}</p><b>Capital: ₱{t['amt']:,}</b></div>", unsafe_allow_html=True)
             if now < end_t: st.button(f"LOCKED (⏳ {str(end_t-now).split('.')[0]})", key=f"l_{actual_idx}", disabled=True)
@@ -215,4 +216,9 @@ elif st.session_state.is_boss:
                     st_t = datetime.now()
                     all_users[u_name].setdefault('inv', []).append({"amt": tx['amt'], "start": st_t.isoformat(), "end": (st_t + timedelta(days=7)).isoformat(), "roi_paid": False})
                     update_user(u_name, all_users[u_name]); st.rerun()
+            elif tx['status'] == "PENDING_WD":
+                 if st.button(f"Approve ₱{tx['amt']:,} WD: {u_name}"):
+                    all_users[u_name]['tx'][idx]['status'] = "SUCCESSFUL_WD"
+                    update_user(u_name, all_users[u_name]); st.rerun()
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
+            
