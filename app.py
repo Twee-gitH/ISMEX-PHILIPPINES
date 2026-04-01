@@ -158,7 +158,7 @@ if st.session_state.user:
         else:
             st.button(btn_label, key=f"lock_{actual_idx}", disabled=True)
 
-    # >>> PASTE THE ENTIRE REFERRAL COMMISSION BLOCK HERE <<<
+        # 4. REFERRAL COMMISSIONS SECTION
     all_u = load_registry()
     referrals = {u_n: u_i for u_n, u_i in all_u.items() if u_i.get('ref_by') == name}
 
@@ -169,6 +169,7 @@ if st.session_state.user:
             b_status = data.get('bonus_status', {}).get(u_n, "AVAILABLE")
             
             st.markdown("<div class='section-header'>👥 REFERRAL COMMISSIONS</div>", unsafe_allow_html=True)
+            
             st.markdown(f"""
                 <div class='user-box'>
                     <b>Capital: ₱{f_dep:,.1f}</b><br>
@@ -181,11 +182,15 @@ if st.session_state.user:
             """, unsafe_allow_html=True)
 
             if b_status == "AVAILABLE":
-                if st.button(f"REQUEST BONUS FOR {u_n}", key=f"req_{u_n}"):
-                    data.setdefault('bonus_status', {})[u_n] = "REQUESTED"; update_user(name, data); st.rerun()
+                # ADDED 'ref_' TO THE KEY BELOW
+                if st.button(f"REQUEST BONUS FOR {u_n}", key=f"ref_req_{u_n}"):
+                    data.setdefault('bonus_status', {})[u_n] = "REQUESTED"
+                    update_user(name, data)
+                    st.rerun()
             else:
-                st.button(f"BONUS {b_status}", key=f"lock_ref_{u_n}", disabled=True)
-    # >>> END OF PASTE <<<
+                # ADDED 'ref_' TO THE KEY BELOW
+                st.button(f"BONUS {b_status}", key=f"ref_lock_{u_n}", disabled=True)
+                
 
     # --- THE LOGOUT BUTTON FOLLOWS ---
     if st.button("LOGOUT"):
