@@ -39,23 +39,28 @@ st.set_page_config(page_title="BPSM Official", layout="wide")
 
 st.markdown("""
     <style>
-    /* Force text boxes to look like CAPS LOCK */
-    input[type="text"] { text-transform: uppercase !important; }
+    /* This forces standard text boxes to look like CAPS LOCK */
+    input[type="text"] { 
+        text-transform: uppercase !important; 
+    }
     
-    /* EXCEPTION: Passwords allow small letters */
+    /* This rule FIXES the PIN issue: it keeps PINs/Passwords exactly as typed */
     input[type="password"] {
         text-transform: none !important;
         -webkit-text-transform: none !important;
     }
     
-    input::placeholder { text-transform: none !important; }
+    /* Keeps placeholders normal so they are easy to read */
+    input::placeholder { 
+        text-transform: none !important; 
+    }
 
     .user-box { background-color: #1c1e24; padding: 20px; border-radius: 15px; border: 1px solid #3a3d46; text-align: center; margin-bottom: 20px; }
     .balance-val { color: #00ff88; font-size: 36px; margin: 0; }
     .section-header { background: #252830; padding: 10px; border-radius: 5px; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-left: 5px solid #ce1126; }
-    .meta-text { color: #8c8f99; font-size: 12px; }
     </style>
     """, unsafe_allow_html=True)
+
 
 # --- 4. ACCESS CONTROL (LOGIN/REGISTER) ---
 if st.session_state.user is None and not st.session_state.is_boss:
