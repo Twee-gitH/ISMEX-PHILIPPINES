@@ -1,10 +1,12 @@
+# ==========================================
+# BLOCK 1: IMPORTS & DATA STORAGE
+# ==========================================
 import streamlit as st
 import json
 import os
 import random
 from datetime import datetime, timedelta
 
-# --- 1. DATA STORAGE ---
 REGISTRY_FILE = "bpsm_registry.json"
 
 def load_registry():
@@ -20,7 +22,9 @@ def update_user(name, data):
     with open(REGISTRY_FILE, "w") as f: 
         json.dump(reg, f, default=str)
 
-# --- 2. GLOBAL STYLES (EXACT PHOTO MATCH) ---
+# ==========================================
+# BLOCK 2: GLOBAL STYLES (MATCHING PHOTOS)
+# ==========================================
 st.set_page_config(page_title="BPSM Official", layout="wide")
 st.markdown("""
     <style>
@@ -43,7 +47,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SESSION & LOGIN ---
+# ==========================================
+# BLOCK 3: SESSION & LOGIN SYSTEM
+# ==========================================
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
 
@@ -66,13 +72,15 @@ if st.session_state.user is None and not st.session_state.is_boss:
             if st.button("ENTER BOSS MODE"): st.session_state.is_boss = True; st.rerun()
     st.stop()
 
-# --- 4. INVESTOR DASHBOARD ---
+# ==========================================
+# BLOCK 4: INVESTOR DASHBOARD ENGINE
+# ==========================================
 if st.session_state.user:
     name = st.session_state.user
     data = load_registry().get(name)
     now = datetime.now()
 
-    # ROI ENGINE
+    # ROI ENGINE (0.20% per cycle)
     MINUTE_RATE = (0.20 / 7) / 1440 
     changed = False
     for i in data.get('inv', []):
@@ -85,37 +93,37 @@ if st.session_state.user:
 
     st.markdown(f'<div class="balance-card"><p class="balance-label">WITHDRAWABLE BALANCE</p><p class="balance-val">₱{data["wallet"]:,.2f}</p></div>', unsafe_allow_html=True)
 
-    # --- ACTION BUTTONS ---
     c1, c2, c3 = st.columns(3)
-    
-        # --- DEPOSIT CAPITAL BLOCK ---
-    with st.expander("📥 DEPOSIT", expanded=True):
-        d_amt = st.number_input("Amount (Min 1000)", 1000, step=500, key="dep_amt_input")
-        file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'], key="dep_file_reg")
-        
-        if file is not None:
-            # The button only appears/highlights once the file is detected
-            st.markdown('<style>.stButton>button { background-color: #00ff88 !important; color: black !important; font-weight: bold; }</style>', unsafe_allow_html=True)
-            if st.button("CONFIRM DEPOSIT", key="confirm_dep_btn"):
-                # Fix for NameError: Ensure 'tx' list exists before appending
-                if 'tx' not in data: 
-                    data['tx'] = []
-                
-                # Record transaction with date and time stated
-                data['tx'].append({
-                    "type": "DEP",
-                    "amt": d_amt,
-                    "status": "PENDING",
-                    "receipt": file.name,
-                    "date": datetime.now().strftime("%Y-%m-%d %I:%M %p")
-                })
-                update_user(name, data)
-                st.success(f"Deposit of ₱{d_amt:,} sent to Admin!")
-                st.rerun()
-        else:
-            # Placeholder button that is greyed out/inactive until file is uploaded
-            st.button("UPLOAD RECEIPT TO CONFIRM", disabled=True)
-            )
+
+    # ==========================================
+    # BLOCK 5: DEPOSIT (FIXED HIGHLIGHT LOGIC)
+    # ==========================================
+    with c1:
+        with st.expander("📥 DEPOSIT", expanded=True):
+            d_amt = st.number_input("Amount (Min 1000)", 1000, step=500, key="dep_amt_input")
+            file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'], key="dep_file_reg")
+            
+            if file is not None:
+                # Highlight button green
+                st.markdown('<style>div.stButton > button:first-child { background-color: #00ff88 !important; color: black !important; font-weight: bold; }</style>', unsafe_allow_html=True)
+                if st.button("CONFIRM DEPOSIT", key="confirm_dep_btn"):
+                    if 'tx' not in data: data['tx'] = []
+                    data['tx'].append({
+                        "type": "DEP",
+                        "amt": d_amt,
+                        "status": "PENDING",
+                        "receipt": file.name,
+                        "date": datetime.now().strftime("%Y-%m-%d %I:%M %p")
+                    })
+                    update_user(name, data)
+                    st.success(f"Deposit of ₱{d_amt:,} sent to Admin!")
+                    st.rerun()
+            else:
+                st.button("UPLOAD RECEIPT TO CONFIRM", disabled=True)
+
+    # ==========================================
+    # BLOCK 6: WITHDRAW & REINVEST
+    # ==========================================
     with c2:
         with st.expander("💸 WITHDRAW"):
             w_amt = st.number_input("Amount", 100.0, float(data['wallet']) if data['wallet'] > 100 else 100.0, key="w_val")
@@ -134,7 +142,9 @@ if st.session_state.user:
                     data.setdefault('inv', []).append({"amt": r_amt, "start": now.isoformat(), "end": (now + timedelta(days=7)).isoformat(), "roi_paid": False})
                     update_user(name, data); st.success("Done!"); st.rerun()
 
-    # --- ACTIVE CYCLES (EXACT PHOTO MATCH) ---
+    # ==========================================
+    # BLOCK 7: ACTIVE CYCLES (MATCHING 8833.jpg)
+    # ==========================================
     st.markdown("<div class='section-header'>⌛ ACTIVE CYCLES</div>", unsafe_allow_html=True)
     inv_list = data.get('inv', [])
     for idx, t in enumerate(reversed(inv_list)):
@@ -157,9 +167,8 @@ if st.session_state.user:
                     ⌛ TIME REMAINING: {rem}
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True) 
         
-        # Pull Out Capital logic with exact date/time strings
         if now < et_t:
             st.markdown(f"""
                 <div class='pull-out-info'>
@@ -177,7 +186,9 @@ if st.session_state.user:
     if st.button("LOGOUT"):
         st.session_state.user = None; st.rerun()
 
-# --- 5. ADMIN ---
+# ==========================================
+# BLOCK 8: ADMIN BOSS OVERVIEW
+# ==========================================
 elif st.session_state.is_boss:
     st.title("👑 BOSS OVERVIEW")
     all_u = load_registry()
@@ -191,4 +202,4 @@ elif st.session_state.is_boss:
                         u_d.setdefault('inv', []).append({"amt": tx['amt'], "start": datetime.now().isoformat(), "end": (datetime.now() + timedelta(days=7)).isoformat(), "roi_paid": False})
                     update_user(u_n, u_d); st.rerun()
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-                
+        
