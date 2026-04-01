@@ -215,7 +215,74 @@ if st.session_state.user is None and not st.session_state.is_boss:
             elif rp1 != rp2:
                 st.error("❌ PINS DO NOT MATCH.")
             elif len(rp1) < 4:
-                st.error("❌ PIN MUST BE AT LEAST 4 CHARACTERS.")
+# --- 3. UI STYLING ---
+st.set_page_config(page_title="BPSM Official", layout="wide")
+
+# CSS: This targets mobile browsers (like yours) more aggressively
+st.markdown("""
+    <style>
+    /* 1. Force general text boxes to look like CAPS LOCK */
+    input[type="text"] {
+        text-transform: uppercase !important;
+    }
+    
+    /* 2. ABSOLUTELY FORCE passwords to remain lowercase/normal */
+    /* Target the input, its placeholder, and the mobile browser engine */
+    input[type="password"] {
+        text-transform: none !important;
+        -webkit-text-transform: none !important;
+    }
+    
+    input::placeholder {
+        text-transform: none !important;
+    }
+
+    /* Standard UI Styling */
+    .user-box { background-color: #1c1e24; padding: 20px; border-radius: 15px; border: 1px solid #3a3d46; text-align: center; margin-bottom: 20px; }
+    .balance-val { color: #00ff88; font-size: 36px; margin: 0; }
+    .section-header { background: #252830; padding: 10px; border-radius: 5px; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-left: 5px solid #ce1126; }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# --- 4. ACCESS CONTROL ---
+# This ONLY runs if there is no user logged in and no boss session active
+if st.session_state.user is None and not st.session_state.is_boss:
+    # Header logic inside the check to prevent double-rendering
+    st.markdown("<div style='background: linear-gradient(135deg, #0038a8 0%, #ce1126 100%); padding: 40px 20px; text-align: center;'><h1>BAGONG PILIPINAS<br>STOCK MARKET</h1></div>", unsafe_allow_html=True)
+    
+    t1, t2 = st.tabs(["🔑 SIGN-IN", "📝 REGISTER"])
+    
+    with t1:
+        ln = st.text_input("INVESTOR NAME", key="login_name").upper()
+        lp = st.text_input("SECURE PIN", type="password", key="login_pin")
+        if st.button("VERIFY & ACCESS"):
+            reg = load_registry()
+            # PIN check is case-sensitive!
+            if ln in reg and reg[ln].get('pin') == lp:
+                st.session_state.user = ln
+                st.rerun()
+            else: 
+                st.error("❌ INVALID CREDENTIALS")
+            
+    with t2:
+        st.warning("⚠️ **IMPORTANT:** PLEASE INPUT ONLY YOUR LEGAL FIRST NAME AND LAST NAME.")
+        rn = st.text_input("FULL LEGAL NAME", key="reg_name").upper()
+        
+        st.info("ℹ️ **PIN SECURITY:** PIN IS CASE-SENSITIVE.")
+        rp1 = st.text_input("CREATE PIN", type="password", key="reg_pin1")
+        rp2 = st.text_input("CONFIRM PIN", type="password", key="reg_pin2")
+        
+        referrer = st.text_input("REFERRER NAME", key="reg_ref").upper()
+        
+        if st.button("CREATE ACCOUNT"):
+            reg = load_registry()
+            final_name = rn.strip().upper()
+            
+            if len(final_name.split()) < 2:
+                st.error("❌ PLEASE INPUT BOTH YOUR LEGAL FIRST NAME AND LAST NAME.")
+            elif rp1 != rp2:
+                st.error("❌ PINS DO NOT MATCH.")
             elif not referrer or referrer not in reg:
                 st.error("❌ VALID REFERRER REQUIRED.")
             elif final_name in reg:
@@ -232,14 +299,16 @@ if st.session_state.user is None and not st.session_state.is_boss:
     with st.expander("🔐 SYSTEM ADMINISTRATION"):
         admin_pin = st.text_input("ADMIN ACCESS PIN", type="password", key="boss_pin_input")
         if st.button("LOG IN AS BOSS"):
-            # Set your admin password here (case sensitive)
+            # Set your admin password exactly here
             if admin_pin == "Admin123": 
                 st.session_state.is_boss = True
                 st.rerun()
             else:
                 st.error("❌ UNAUTHORIZED")
 
+    # CRITICAL: This prevents the app from drawing anything else twice
     st.stop()
+    
             
 
     # --- ADMIN ACCESS SECTION ---
