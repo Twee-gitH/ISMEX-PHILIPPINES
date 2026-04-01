@@ -94,6 +94,22 @@ if st.session_state.user is None and not st.session_state.is_boss:
             if st.button("ENTER BOSS MODE"): st.session_state.is_boss = True; st.rerun()
     st.stop()
 
+# Insert this before or after the Active Cycles section in the user dashboard
+st.markdown("<div class='section-header'>📥 DEPOSIT CAPITAL</div>", unsafe_allow_html=True)
+with st.container():
+    dep_amt = st.number_input("Amount to Deposit", min_value=500, step=500)
+    if st.button("SUBMIT DEPOSIT REQUEST"):
+        new_tx = {
+            "amt": dep_amt,
+            "type": "DEPOSIT",
+            "status": "PENDING_DEP",
+            "date": datetime.now().isoformat()
+        }
+        data.setdefault('tx', []).append(new_tx)
+        update_user(name, data)
+        st.success("Request sent to Admin for approval.")
+        
+
 # --- FULL CORRECTED INVESTOR DASHBOARD ---
 if st.session_state.user:
     name = st.session_state.user
