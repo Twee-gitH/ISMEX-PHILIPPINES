@@ -113,22 +113,52 @@ if st.session_state.user:
         else:
             st.button(btn_label, key=f"lock_{actual_idx}", disabled=True)
 
-    # REFERRAL COMMISSIONS
-    st.markdown("<div class='section-header'>👥 REFERRAL COMMISSIONS</div>", unsafe_allow_html=True)
-    all_u = load_registry()
-    for u_n, u_i in all_u.items():
-        if u_i.get('ref_by') == name:
-            f_dep = next((tx['amt'] for tx in u_i.get('tx', []) if tx['status'] == "SUCCESSFUL_DEP"), 0)
-            comm = f_dep * 0.20
-            b_status = data.get('bonus_status', {}).get(u_n, "AVAILABLE")
-            st.write(f"**{u_n}** | 1st Dep: ₱{f_dep:,.2f} | Bonus: ₱{comm:,.2f}")
-            if comm > 0 and b_status == "AVAILABLE":
+        st.markdown("<div class='section-header'>👥 REFERRAL COMMISSIONS</div>", unsafe_allow_html=True)
+    all_users = load_registry()
+    
+    # 1. Get all users who were referred by the current logged-in user
+    referrals = {u_n: u_i for u_n, u_i in all_users.items() if u_i.get('ref_by') == name}
+
+    # 2. Display them (Sorted by newest registration date if available)
+    for u_n, u_i in referrals.items():
+        # Retrieve the first successful deposit amount
+        first_dep = 0
+        for tx in u_i.get('tx', []):
+            if tx['status'] == "SUCCESSFUL_DEP":
+                first_dep = tx['amt']
+                break
+        
+        # Calculate 20% bonus
+        comm = first_dep * 0.20
+        # Check if the user has a registration date stored, otherwise show N/A
+        reg_date = u_i.get('reg_date', "N/A") 
+        b_status = data.get('bonus_status', {}).get(u_n, "AVAILABLE")
+        
+        st.markdown(f"""
+            <div style='background-color: #16181d; padding: 15px; border-radius: 8px; border: 1px solid #2d313a; margin-bottom: 10px;'>
+                <b style='color:#00ff88; font-size: 18px;'>{u_n}</b><br>
+                <span style='color:#8c8f99; font-size: 12px;'>Registered: {reg_date}</span><br>
+                <div style='margin-top: 8px;'>
+                    <span>1st Deposit: <b>₱{first_dep:,.2f}</b></span><br>
+                    <span>Your Bonus: <b style='color:#00ff88;'>₱{comm:,.2f}</b></span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 3. Action Button
+        if comm > 0:
+            if b_status == "AVAILABLE":
                 if st.button(f"Request Bonus for {u_n}", key=f"req_{u_n}"):
-                    data.setdefault('bonus_status', {})[u_n] = "REQUESTED"; update_user(name, data); st.rerun()
-            elif comm > 0: st.info(f"Status: {b_status}")
-
-    if st.button("LOGOUT"): st.session_state.user = None; st.rerun()
-
+                    # Update local data
+                    if 'bonus_status' not in data: data['bonus_status'] = {}
+                    data['bonus_status'][u_n] = "REQUESTED"
+                    update_user(name, data)
+                    st.success(f"Request sent for {u_n}")
+                    st.rerun()
+            else:
+                # Display current status (REQUESTED, RECEIVED, or FAILED)
+                st.info(f"📌 Status: {b_status}")
+                
 # --- 5. ADMIN ---
 elif st.session_state.is_boss:
     st.title("👑 BOSS MODE")
