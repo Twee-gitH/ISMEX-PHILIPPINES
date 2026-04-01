@@ -30,6 +30,7 @@ st.markdown("""
     input[type="text"] { text-transform: uppercase !important; }
     input[type="password"] { text-transform: none !important; -webkit-text-transform: none !important; }
     .user-box { background-color: #1c1e24; padding: 15px; border-radius: 10px; border: 1px solid #3a3d46; margin-bottom: 10px; }
+    .roi-text { color: #00ff88; font-family: monospace; font-size: 20px; font-weight: bold; }
     .section-header { background: #252830; padding: 8px; border-radius: 5px; margin-top: 15px; font-weight: bold; border-left: 5px solid #ce1126; }
     </style>
     """, unsafe_allow_html=True)
@@ -55,7 +56,6 @@ if st.session_state.user is None and not st.session_state.is_boss:
             st.success("SUCCESS"); st.rerun()
 
     with st.expander("🔐 ADMIN"):
-        # REQUIREMENT 3: ADMIN CODE UPDATED
         ap = st.text_input("ADMIN PIN", type="password")
         if st.button("ENTER BOSS MODE"):
             if ap == "0102030405": 
@@ -69,12 +69,21 @@ if st.session_state.user:
     data = load_registry().get(name)
     now = datetime.now()
 
-    # REQUIREMENT 1: AUTO ROI & REINVEST
+    # --- LIVE ROI ENGINE ---
+    # 20% Weekly / 7 Days / 1440 Minutes
+    MINUTE_RATE = (0.20 / 7) / 1440 
     changed = False
+
     for i in data.get('inv', []):
         st_t, et_t = datetime.fromisoformat(i['start']), datetime.fromisoformat(i['end'])
         grace_t = et_t + timedelta(hours=1)
         
+        # Calculate Accumulated ROI (Live)
+        calc_now = min(now, et_t)
+        mins_passed = (calc_now - st_t).total_seconds() / 60
+        i['accumulated_roi'] = max(0, i['amt'] * (mins_passed * MINUTE_RATE))
+
+        # Auto Payout at Maturity
         if now >= et_t and not i.get('roi_paid', False):
             profit = i['amt'] * 0.20
             data['wallet'] += profit
@@ -82,6 +91,7 @@ if st.session_state.user:
             data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "WEEKLY ROI", "amt": profit, "status": "SUCCESSFUL"})
             changed = True
         
+        # Auto-Reinvest after Grace Period
         if now >= grace_t:
             i.update({"start": now.isoformat(), "end": (now + timedelta(days=7)).isoformat(), "roi_paid": False})
             data.setdefault('tx', []).append({"date": now.strftime("%Y-%m-%d %H:%M"), "type": "AUTO-REINVEST", "amt": i['amt'], "status": "SUCCESSFUL"})
@@ -90,24 +100,37 @@ if st.session_state.user:
 
     st.write(f"### Investor: {name} | Balance: ₱{data['wallet']:,.2f}")
     
-    st.markdown("<div class='section-header'>⏳ ACTIVE CYCLES</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-header'>⏳ ACTIVE CYCLES (LIVE TRACKER)</div>", unsafe_allow_html=True)
     for idx, t in enumerate(data.get('inv', [])):
         st_t, et_t = datetime.fromisoformat(t['start']), datetime.fromisoformat(t['end'])
-        # REQUIREMENT 1: EXACT DATE & TIME OF APPROVAL AND MATURITY
+        rem = et_t - now
+        
+        # Time Display Logic
+        if now < et_t:
+            timer_text = f"⏳ TIME REMAINING: {str(rem).split('.')[0]}"
+        elif et_t <= now < (et_t + timedelta(hours=1)):
+            timer_text = "🟢 MATURED: WITHDRAW NOW"
+        else:
+            timer_text = "♻️ RE-INVESTING..."
+
         st.markdown(f"""
-            <div class='user-box'>
-                <b>Capital: ₱{t['amt']:,}</b><br>
-                Approved Date/Time: {st_t.strftime('%Y-%m-%d %I:%M:%S %p')}<br>
-                Maturity Date/Time: {et_t.strftime('%Y-%m-%d %I:%M:%S %p')}
+            <div class='user-box' style='border-left: 5px solid #00ff88;'>
+                <b style='font-size:18px;'>Capital: ₱{t['amt']:,}</b><br>
+                <span class='roi-text'>Accumulated ROI: ₱{t.get('accumulated_roi', 0):,.4f}</span><br>
+                <span style='color:#8c8f99;'>Total to Receive: ₱{t['amt']*0.20:,.2f}</span><br><br>
+                <b>Approved:</b> {st_t.strftime('%Y-%m-%d %I:%M %p')}<br>
+                <b>Maturity:</b> {et_t.strftime('%Y-%m-%d %I:%M %p')}<br>
+                <b style='color:#ff4b4b;'>{timer_text}</b>
             </div>
         """, unsafe_allow_html=True)
+
         if et_t <= now < (et_t + timedelta(hours=1)):
             if st.button(f"PULL CAPITAL ₱{t['amt']:,}", key=f"p{idx}"):
                 data['wallet'] += t['amt']; data['inv'].pop(idx)
                 update_user(name, data); st.rerun()
 
-    # REQUIREMENT 2: COMMISSION REQUEST BUTTONS
-    st.markdown("<div class='section-header'>👥 REFERRAL COMMISSIONS</div>", unsafe_allow_html=True)
+    # --- BONUS REQUESTS ---
+    st.markdown("<div class='section-header'>👥 REFERRAL BONUSES</div>", unsafe_allow_html=True)
     all_u = load_registry()
     for u_n, u_i in all_u.items():
         if u_i.get('ref_by') == name:
@@ -123,49 +146,45 @@ if st.session_state.user:
                         data.setdefault('bonus_status', {})[u_n] = "REQUESTED"
                         update_user(name, data); st.rerun()
                 else:
-                    c2.write(f"Status: **{b_status}**")
+                    c2.write(f"**{b_status}**")
 
-    st.markdown("<div class='section-header'>📜 TRANSACTION HISTORY</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-header'>📜 HISTORY</div>", unsafe_allow_html=True)
     st.table(pd.DataFrame(data.get('tx', [])))
 
     if st.button("LOGOUT"): st.session_state.user = None; st.rerun()
 
-# --- 5. REQUIREMENT 4: FULL ADMIN PANEL ---
+# --- 5. ADMIN OVERVIEW (FULL CONTROL) ---
 elif st.session_state.is_boss:
     st.title("👑 ADMIN OVERVIEW")
     all_users = load_registry()
-    
     for u_name, u_data in all_users.items():
         with st.expander(f"Investor: {u_name} | PIN: {u_data.get('pin')} | Wallet: ₱{u_data.get('wallet'):,.2f}"):
-            # All Transactions for this user
-            st.write("### Transactions & Requests")
+            st.write("### Requests & Transactions")
             for idx, tx in enumerate(u_data.get('tx', [])):
-                colA, colB = st.columns([3, 1])
-                colA.write(f"{tx['date']} | {tx['type']} | ₱{tx['amt']:,} | {tx['status']}")
+                ca, cb = st.columns([4, 1])
+                ca.write(f"{tx['date']} | {tx['type']} | ₱{tx['amt']:,} | {tx['status']}")
                 if tx['status'] == "PENDING_DEP":
-                    if colB.button("APPROVE", key=f"app_{u_name}_{idx}"):
+                    if cb.button("APPROVE", key=f"app_{u_name}_{idx}"):
                         st_t = datetime.now()
                         tx['status'] = "SUCCESSFUL_DEP"
                         u_data.setdefault('inv', []).append({"amt": tx['amt'], "start": st_t.isoformat(), "end": (st_t + timedelta(days=7)).isoformat(), "roi_paid": False})
                         update_user(u_name, u_data); st.rerun()
 
-            # Manage Bonus Requests
             st.divider()
-            st.write("### Bonus Claim Requests")
+            st.write("### Bonus Requests")
             for inv_name, status in u_data.get('bonus_status', {}).items():
                 if status == "REQUESTED":
-                    st.write(f"Request from {u_name} for referring {inv_name}")
-                    ca, cb = st.columns(2)
-                    if ca.button(f"CONFIRM RECEIVE", key=f"conf_{u_name}_{inv_name}"):
-                        # Find amount to pay
+                    st.write(f"Bonus for referring {inv_name}")
+                    c1, c2 = st.columns(2)
+                    if c1.button(f"PAY NOW", key=f"p_{u_name}_{inv_name}"):
                         i_data = all_users.get(inv_name, {})
                         f_amt = next((t['amt'] for t in i_data.get('tx', []) if t['status'] == "SUCCESSFUL_DEP"), 0)
                         u_data['wallet'] += (f_amt * 0.20)
                         u_data['bonus_status'][inv_name] = "RECEIVED"
                         update_user(u_name, u_data); st.rerun()
-                    if cb.button(f"SET TO FAILED", key=f"fail_{u_name}_{inv_name}"):
+                    if c2.button(f"FAIL CLAIM", key=f"f_{u_name}_{inv_name}"):
                         u_data['bonus_status'][inv_name] = "FAILED"
                         update_user(u_name, u_data); st.rerun()
                         
     if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-        
+                
