@@ -95,12 +95,31 @@ elif st.session_state.user:
     if c2.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
     if c3.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
 
+        # --- USER DASHBOARD DEPOSIT SECTION ---
     if st.session_state.action_type == "DEP":
         with st.form("d"):
-            amt_d = st.number_input("Amount", min_value=100.0)
-            if st.form_submit_button("Submit"):
-                data.setdefault('pending_actions', []).append({"type": "DEPOSIT", "amount": amt_d, "date": str(datetime.now())})
-                update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
+            st.markdown("### 📥 DEPOSIT REQUEST")
+            amt_d = st.number_input("Amount to Deposit", min_value=100.0)
+            
+            # THE RESTORED BROWSE RECEIPT FEATURE
+            uploaded_file = st.file_uploader("Browse/Upload Deposit Receipt", type=['jpg', 'jpeg', 'png'])
+            
+            if st.form_submit_button("SEND TO ADMIN"):
+                if uploaded_file is not None:
+                    # Save the request to pending_actions
+                    data.setdefault('pending_actions', []).append({
+                        "type": "DEPOSIT", 
+                        "amount": amt_d, 
+                        "date": str(datetime.now()),
+                        "status": "WAITING FOR APPROVAL"
+                    })
+                    update_user(st.session_state.user, data)
+                    st.success("Receipt sent! Waiting for Admin approval.")
+                    st.session_state.action_type = None
+                    st.rerun()
+                else:
+                    st.error("Please upload your receipt first!")
+                    
 
     # --- RUNNING CAPITALS SECTION ---
     st.markdown("### 🚀 RUNNING CAPITALS")
