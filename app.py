@@ -113,7 +113,7 @@ elif st.session_state.user:
     if st.session_state.action_type == "DEP":
         with st.form("d"):
             amt_d = st.number_input("Deposit Amount", min_value=100.0)
-            st.file_uploader("Browse Receipt", type=['jpg','png','jpeg']) # ADDED AS ASKED
+            st.file_uploader("Browse Receipt", type=['jpg','png','jpeg'])
             if st.form_submit_button("Submit"):
                 data.setdefault('pending_actions', []).append({"type": "DEPOSIT", "amount": amt_d, "date": str(datetime.now())})
                 update_user(st.session_state.user, data); st.success("Sent!"); st.session_state.action_type = None; st.rerun()
@@ -131,21 +131,77 @@ elif st.session_state.user:
                     data.setdefault('pending_actions', []).append({"type": "WITHDRAW", "amount": amt_w, "bank": bn, "acc_num": anum, "date": str(datetime.now())})
                     update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
 
-    # --- TRANSACTION HISTORY SECTION (ADDED AS ASKED) ---
+    if st.session_state.action_type == "REIN":
+        if data['wallet'] < 100:
+            st.error("❌ Need ₱100.00")
+            if st.button("Close"): st.session_state.action_type = None; st.rerun()
+        else:
+            with st.form("r"):
+                amt_r = st.number_input("Reinvest Amount", min_value=100.0, max_value=float(data['wallet']))
+                if st.form_submit_button("Start Cycle"):
+                    data['wallet'] -= amt_r
+                    data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
+                    update_user(st.session_state.user, data); st.success("Cycle Started!"); st.session_state.action_type = None; st.rerun()
+
+    # --- TRANSACTION HISTORY SECTION ---
     st.markdown("### 📜 TRANSACTION HISTORY")
     tabs = st.tabs(["⏳ Waiting", "✅ Approved"])
     
-    with tabs[0]: # Waiting Approval
+    with tabs[0]:
         pending = data.get('pending_actions', [])
         if not pending: st.info("No waiting approvals.")
         for p in pending:
             st.markdown(f"<div class='hist-card' style='border-left-color:#ffaa00;'><b>{p['type']}</b>: ₱{p['amount']:,.2f}<br><small>{p['date'][:16]}</small></div>", unsafe_allow_html=True)
             
-    with tabs[1]: # Approved / Active
+    with tabs[1]:
         active = data.get('inv', [])
-        if not active: st.info("No active investments.")
-        for a in active:
-            st.markdown(f"<div class='hist-card' style='border-left-color:#00ff88;'><b>ACTIVE INVESTMENT</b>: ₱{a['amount']:,.2f}<br><small>Started: {a['start_time'][:16]}</small></div>", unsafe_allow_html=True)
+        if not active: 
+            st.info("No active investments.")
+        else:
+            updated_invs = []
+            needs_update = False
+            now = datetime.now()
+            
+            for idx, a in enumerate(active):
+                start_dt = datetime.fromisoformat(a['start_time'])
+                end_dt = start_dt + timedelta(days=7)
+                grace_end = end_dt + timedelta(hours=1)
+                
+                # RECYCLE LOGIC: If passed 1-hour grace period, reset start time
+                if now > grace_end:
+                    a['start_time'] = now.isoformat()
+                    needs_update = True
+                    st.toast(f"Capital ₱{a['amount']:,} recycled for another 7 days.")
+                    start_dt = now
+                    end_dt = start_dt + timedelta(days=7)
+                    grace_end = end_dt + timedelta(hours=1)
+
+                st.markdown(f"""
+                    <div class='hist-card' style='border-left-color:#00ff88;'>
+                        <b>RUNNING CAPITAL</b>: ₱{a['amount']:,.2f}<br>
+                        <small><b>Started:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small><br>
+                        <small><b>Matures:</b> {end_dt.strftime('%Y-%m-%d %H:%M')}</small>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # PULL OUT BUTTON: Visible only during the 1-hour grace period
+                if end_dt <= now <= grace_end:
+                    if st.button(f"📥 PULL OUT ₱{a['amount']*1.20:,.2f}", key=f"pull_{idx}"):
+                        data['wallet'] += (a['amount'] * 1.20)
+                        # Not adding to updated_invs removes it from active capitals
+                        needs_update = True
+                        update_user(st.session_state.user, data)
+                        st.balloons()
+                        st.rerun()
+                elif now < end_dt:
+                    st.write(f"⏳ Time Remaining: {str(end_dt - now).split('.')[0]}")
+                
+                # Keep in running list if not pulled out
+                updated_invs.append(a)
+
+            if needs_update:
+                data['inv'] = updated_invs
+                update_user(st.session_state.user, data)
 
 # --- ROUTE C: LOGIN ---
 elif st.session_state.page == "login":
@@ -176,4 +232,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-    
+            
