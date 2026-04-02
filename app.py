@@ -159,7 +159,11 @@ elif st.session_state.page == "login":
 
 # --- SIMPLE ADVERTISEMENT FRONT PAGE ---
 else:
-    st.markdown("## ISMEX OFFICIAL")
+    st.markdown(
+    "<h1 style='color: #007BFF;'>ISMEX OFFICIAL</h1>", 
+    unsafe_allow_html=True
+    )
+    
     st.markdown("### Transform your initial investment into a powerhouse of growth through our precision-engineered market cycles. Watch your capital accelerate in a secure environment where every cent is optimized for maximum, safe accumulation.")
     st.divider()
     
