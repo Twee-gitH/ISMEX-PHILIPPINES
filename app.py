@@ -308,6 +308,7 @@ elif st.session_state.page == "login":
             if u in reg and str(reg[u]['pin']) == str(p): st.session_state.user = u; st.rerun()
             else: st.error("Invalid Login")
         with t2:
+            with t2:
         fn = st.text_input("NAME MIDDLE LAST").upper().strip()
         p1 = st.text_input("6-DIGIT PIN", type="password", max_chars=6)
         p2 = st.text_input("CONFIRM PIN", type="password", max_chars=6)
@@ -322,15 +323,15 @@ elif st.session_state.page == "login":
             
             # 2. Check if Referral exists
             elif rn not in reg:
-                st.error(f"Referral Name '{rn}' not found. Please check the spelling.")
+                st.error(f"Referral Name '{rn}' not found. Please check spelling.")
             
-            # 3. Check if Referral is an ACTIVE investor (has 'inv' entries)
+            # 3. Check if Referral is an ACTIVE investor
             else:
                 referrer_data = reg[rn]
                 if not referrer_data.get('inv') or len(referrer_data.get('inv')) == 0:
-                    st.error(f"'{rn}' is not an active investor. Only active investors can refer new users.")
+                    st.error(f"'{rn}' is not an active investor. Only active investors can refer.")
                 else:
-                    # Success - Register the user
+                    # Register the user
                     reg[fn] = {
                         "pin": p1, 
                         "wallet": 0.0, 
@@ -340,10 +341,11 @@ elif st.session_state.page == "login":
                         "pending_actions": [], 
                         "history": [], 
                         "commissions": [],
-                        "has_deposited": False # Track for the 20% bonus logic
+                        "has_deposited": False
                     }
                     update_user(fn, reg[fn])
                     st.success("Registration Successful! You can now Login.")
+                    
                     
 # RESTORED ORIGINAL FRONT PAGE
 else:
