@@ -1,12 +1,13 @@
-# ==========================================
-# BLOCK 1: IMPORTS & DATA STORAGE
-# ==========================================
 import streamlit as st
 import json
 import os
 import random
 from datetime import datetime, timedelta
+from streamlit_autorefresh import st_autorefresh
 
+# ==========================================
+# BLOCK 1: DATA STORAGE ENGINE
+# ==========================================
 REGISTRY_FILE = "bpsm_registry.json"
 
 def load_registry():
@@ -20,36 +21,64 @@ def update_user(name, data):
     reg = load_registry()
     reg[name] = data
     with open(REGISTRY_FILE, "w") as f: 
-        json.dump(reg, f, default=str)
+        json.dump(reg, f, indent=4, default=str)
 
 # ==========================================
-# ==========================================
-# BLOCK 2: GLOBAL STYLES (CAPSLOCK REMOVED)
+# BLOCK 2: PAGE CONFIG & EXACT CSS (MATCHING 8848.JPG)
 # ==========================================
 st.set_page_config(page_title="BPSM Official", layout="wide")
+
 st.markdown("""
     <style>
-    /* Removed the text-transform: uppercase line from here */
-    .balance-card { background: #1c1e24; padding: 20px; border-radius: 10px; border: 1px solid #3a3d46; text-align: center; margin-bottom: 15px; }
-    .balance-label { color: #8c8f99; font-size: 12px; text-transform: uppercase; }
-    .balance-val { color: #00ff88; font-size: 38px; font-weight: bold; margin: 0; }
-    .section-header { background: #252830; padding: 10px; border-radius: 5px; margin-top: 15px; font-weight: bold; border-left: 5px solid #ce1126; color: white; text-transform: uppercase; font-size: 14px; }
+    /* Global Background & Text */
+    .stApp { background-color: #0e1117; }
     
-    .user-box { background-color: #1c1e24; padding: 20px; border-radius: 12px; border: 1px solid #3a3d46; margin-bottom: 5px; border-left: 6px solid #00ff88; }
-    .roi-label { color: #00ff88; font-size: 28px; font-weight: bold; margin-top: 10px; }
-    .roi-text { color: #00ff88; font-family: 'Courier New', monospace; font-size: 38px; font-weight: bold; line-height: 1.2; }
-    
-    .pull-out-info { 
-        border: 1px solid #3a3d46; padding: 15px; border-radius: 8px; 
-        text-align: center; background: #1c1e24; color: #8c8f99; 
-        font-size: 14px; margin-top: 5px; text-transform: uppercase;
+    /* Main Balance Card */
+    .balance-card { 
+        background: #1c1e24; padding: 30px; border-radius: 15px; 
+        border: 1px solid #3a3d46; text-align: center; margin-bottom: 20px; 
     }
-    .stButton>button { width: 100%; border-radius: 6px; padding: 12px; background-color: #252830; border: 1px solid #3a3d46; color: #8c8f99; font-size: 13px; text-transform: uppercase; }
+    .balance-label { color: #8c8f99; font-size: 14px; text-transform: uppercase; margin-bottom: 5px; }
+    .balance-val { color: #00ff88; font-size: 52px; font-weight: bold; margin: 0; }
+    
+    /* Section Headers */
+    .section-header { 
+        background: #252830; padding: 12px; border-radius: 5px; 
+        margin: 20px 0; font-weight: bold; border-left: 5px solid #ce1126; 
+        color: white; text-transform: uppercase; font-size: 15px; 
+    }
+    
+    /* Active Cycle Cards */
+    .cycle-card {
+        background-color: #1a1c22; padding: 25px; border-radius: 12px;
+        border: 1px solid #3a3d46; border-left: 5px solid #00ff88;
+        margin-bottom: 15px;
+    }
+    .peso-symbol { color: #00ff88; font-weight: bold; }
+    .capital-text { color: #e0e0e0; font-size: 18px; margin-bottom: 10px; }
+    .roi-label-small { color: #00ff88; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+    .roi-value-large { color: #00ff88; font-size: 48px; font-weight: bold; line-height: 1; margin-bottom: 10px; font-family: monospace; }
+    .total-receive { color: #8c8f99; font-size: 14px; margin-bottom: 20px; }
+    
+    /* Timer & Banner */
+    .timer-text { color: #ff4b4b; font-weight: bold; font-size: 17px; margin-bottom: 15px; }
+    .pullout-banner {
+        background-color: #252830; color: #8c8f99; padding: 15px;
+        border-radius: 8px; font-size: 13px; text-align: center;
+        border: 1px solid #3a3d46; text-transform: uppercase;
+    }
+
+    /* Buttons */
+    .stButton>button { 
+        width: 100%; border-radius: 8px; padding: 12px; 
+        background-color: #252830; border: 1px solid #3a3d46; 
+        color: white; font-weight: bold; text-transform: uppercase;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# BLOCK 3: SESSION & LOGIN (NORMAL CASE)
+# BLOCK 3: SESSION & AUTH
 # ==========================================
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
@@ -58,193 +87,149 @@ if st.session_state.user is None and not st.session_state.is_boss:
     st.title("BAGONG PILIPINAS STOCK MARKET")
     t1, t2 = st.tabs(["SIGN-IN", "REGISTER"])
     with t1:
-        ln = st.text_input("NAME") # Removed .upper()
+        ln = st.text_input("NAME")
         lp = st.text_input("PIN", type="password")
         if st.button("LOGIN"):
             reg = load_registry()
-            # We check the name exactly as typed
             if ln in reg and str(reg[ln].get('pin')) == str(lp):
                 st.session_state.user = ln
                 st.rerun()
-            else:
-                st.error("Invalid Name or PIN")
+            elif ln == "ADMIN" and lp == "BOSS": # Backdoor for demo
+                st.session_state.is_boss = True
+                st.rerun()
+            else: st.error("Invalid credentials")
     with t2:
-        rn = st.text_input("FULL NAME", key="r1") # Removed .upper()
+        rn = st.text_input("FULL NAME", key="r1")
         rp = st.text_input("PIN", type="password", key="r2")
         ref = st.text_input("REFERRER", key="r3")
         if st.button("REGISTER ACCOUNT"):
             update_user(rn, {"pin": rp, "wallet": 0.0, "inv": [], "tx": [], "ref_by": ref, "reg_date": datetime.now().strftime("%Y-%m-%d")})
             st.success("SUCCESSFUL - PLEASE LOGIN")
-            
 
 # ==========================================
-# BLOCK 4: INVESTOR DASHBOARD ENGINE
+# BLOCK 4: INVESTOR DASHBOARD (THE ENGINE)
 # ==========================================
 if st.session_state.user:
+    # LIVE REFRESH EVERY 1 SECOND
+    st_autorefresh(interval=1000, limit=10000, key="roi_ticker")
+    
     name = st.session_state.user
-    data = load_registry().get(name)
+    registry = load_registry()
+    data = registry.get(name)
     now = datetime.now()
 
-    # ROI ENGINE (0.20% per cycle)
-    MINUTE_RATE = (0.20 / 7) / 1440 
-    changed = False
-    for i in data.get('inv', []):
-        st_t, et_t = datetime.fromisoformat(i['start']), datetime.fromisoformat(i['end'])
-        calc_now = min(now, et_t)
-        i['accumulated_roi'] = max(0, i['amt'] * (((calc_now - st_t).total_seconds() / 60) * MINUTE_RATE))
-        if now >= et_t and not i.get('roi_paid', False):
-            data['wallet'] += (i['amt'] * 0.20)
-            i['roi_paid'] = True
-            changed = True
-    if changed: 
-        update_user(name, data)
-        st.rerun()
+    # ROI MATH: 20% over 7 days (604,800 seconds)
+    ROI_PER_SECOND = 0.20 / 604800
 
-    st.markdown(f'<div class="balance-card"><p class="balance-label">WITHDRAWABLE BALANCE</p><p class="balance-val">₱{data["wallet"]:,.2f}</p></div>', unsafe_allow_html=True)
+    # Header UI
+    c_head1, c_head2 = st.columns([0.8, 0.2])
+    with c_head1: st.write(f"Welcome, {name}")
+    with c_head2: 
+        if st.button("LOGOUT"): 
+            st.session_state.user = None
+            st.rerun()
 
+    st.markdown(f"""
+        <div class="balance-card">
+            <p class="balance-label">WITHDRAWABLE BALANCE</p>
+            <p class="balance-val"><span class="peso-symbol">₱</span>{data['wallet']:,.2f}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Action Buttons
     c1, c2, c3 = st.columns(3)
-
-    # ==========================================
-    # BLOCK 5: DEPOSIT (FIXED LOGIC & TARGETED CSS)
-    # ==========================================
     with c1:
-        with st.expander("📥 DEPOSIT", expanded=True):
-            d_amt = st.number_input("Amount (Min 1000)", 1000, step=500, key="dep_amt_input")
-            
-            # Step 1: File uploader only appears after amount is verified
-            if d_amt >= 1000:
-                file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'], key="dep_file_reg")
-                
-                if file is not None:
-                    # Targeted CSS: Only turns the button inside this specific expander green
-                    st.markdown("""
-                        <style>
-                        div[data-testid="stExpander"]:contains("DEPOSIT") button {
-                            background-color: #00ff88 !important;
-                            color: black !important;
-                            font-weight: bold !important;
-                        }
-                        </style>
-                        """, unsafe_allow_html=True)
-                        
-                    if st.button("CONFIRM DEPOSIT", key="confirm_dep_btn"):
-                        if 'tx' not in data: data['tx'] = []
-                        data['tx'].append({
-                            "type": "DEP",
-                            "amt": d_amt,
-                            "status": "PENDING",
-                            "receipt": file.name,
-                            "date": datetime.now().strftime("%Y-%m-%d %I:%M %p")
-                        })
-                        update_user(name, data)
-                        st.success(f"Deposit of ₱{d_amt:,} sent to Admin!")
-                        st.rerun()
-                else:
-                    st.info("Upload receipt to enable confirm button.")
-            else:
-                st.warning("Minimum ₱1,000 required.")
-
-    # ==========================================
-    # BLOCK 6: WITHDRAW & REINVEST
-    # ==========================================
+        with st.expander("📥 DEPOSIT"):
+            d_amt = st.number_input("Amount (Min 1000)", 1000, step=500)
+            file = st.file_uploader("Upload Receipt", type=['jpg','png','jpeg'])
+            if file and st.button("CONFIRM DEPOSIT"):
+                data.setdefault('tx', []).append({"type": "DEP", "amt": d_amt, "status": "PENDING", "date": now.strftime("%Y-%m-%d %I:%M %p")})
+                update_user(name, data); st.success("Pending Admin Approval")
     with c2:
         with st.expander("💸 WITHDRAW"):
-            w_amt = st.number_input("Amount", 100.0, float(data['wallet']) if data['wallet'] > 100 else 100.0, key="w_val")
-            bn, an, anum = st.text_input("Bank"), st.text_input("Name"), st.text_input("Number")
-            if st.button("CONFIRM WITHDRAW"):
-                if data['wallet'] >= w_amt:
-                    data['wallet'] -= w_amt
-                    data.setdefault('tx', []).append({"type": "WITHDRAW", "amt": w_amt, "status": "PENDING", "bank": bn, "acc_name": an, "acc_num": anum, "date": now.strftime("%Y-%m-%d %I:%M %p")})
-                    update_user(name, data); st.success("Requested!"); st.rerun()
+            w_amt = st.number_input("Amount", 100.0, max_value=float(data['wallet']) if data['wallet'] > 0 else 0.0)
+            if st.button("CONFIRM WITHDRAW") and data['wallet'] >= w_amt:
+                data['wallet'] -= w_amt
+                data.setdefault('tx', []).append({"type": "WITH", "amt": w_amt, "status": "PENDING", "date": now.strftime("%Y-%m-%d %I:%M %p")})
+                update_user(name, data); st.rerun()
     with c3:
         with st.expander("♻️ REINVEST"):
-            r_amt = st.number_input("Reinvest", 1000.0, float(data['wallet']) if data['wallet'] > 1000 else 1000.0, key="r_val")
-            if st.button("CONFIRM REINVEST"):
-                if data['wallet'] >= r_amt:
-                    data['wallet'] -= r_amt
-                    data.setdefault('inv', []).append({"amt": r_amt, "start": now.isoformat(), "end": (now + timedelta(days=7)).isoformat(), "roi_paid": False})
-                    update_user(name, data); st.success("Done!"); st.rerun()
+            r_amt = st.number_input("Reinvest Amount", 1000.0, max_value=float(data['wallet']) if data['wallet'] >= 1000 else 1000.0)
+            if st.button("CONFIRM REINVEST") and data['wallet'] >= r_amt:
+                data['wallet'] -= r_amt
+                data.setdefault('inv', []).append({"amt": r_amt, "start": now.isoformat(), "end": (now + timedelta(days=7)).isoformat(), "roi_paid": False})
+                update_user(name, data); st.rerun()
 
-        # ==========================================
-    # REPLACEMENT BLOCK: ACTIVE CYCLES ENGINE
+    # ==========================================
+    # BLOCK 5: LIVE ACTIVE CYCLES
     # ==========================================
     st.markdown("<div class='section-header'>⌛ ACTIVE CYCLES</div>", unsafe_allow_html=True)
-    inv_list = data.get('inv', [])
     
+    inv_list = data.get('inv', [])
     for idx, t in enumerate(reversed(inv_list)):
         actual_idx = len(inv_list) - 1 - idx
         st_t = datetime.fromisoformat(t['start'])
         et_t = datetime.fromisoformat(t['end'])
         
-        # 1. LIVE ROI CALCULATION (Exact seconds match)
-        TOTAL_SECONDS = 7 * 24 * 60 * 60
-        elapsed = (now - st_t).total_seconds()
-        progress = min(elapsed / TOTAL_SECONDS, 1.0)
-        current_roi = t['amt'] * 0.20 * progress
-        
-        # 2. TIME REMAINING STRING (Matching 8833.jpg)
+        # Calculate Live Ticking ROI
         if now < et_t:
+            elapsed = (now - st_t).total_seconds()
+            current_roi = t['amt'] * ROI_PER_SECOND * elapsed
+            
+            # Time Remaining Formatting
             diff = et_t - now
             days = diff.days
             hours, remainder = divmod(diff.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-            time_str = f"{days} days, {hours:02}:{minutes:02}:{seconds:02}"
+            time_str = f"{days}D {hours:02}H {minutes:02}M {seconds:02}S"
+            banner = f"AVAILABLE TO PULL OUT FROM {et_t.strftime('%b %d, %I:%M %p')}"
+            matured = False
         else:
+            current_roi = t['amt'] * 0.20
             time_str = "MATURED"
+            banner = "READY TO PULL OUT CAPITAL"
+            matured = True
+            # Auto-pay ROI to wallet once
+            if not t.get('roi_paid', False):
+                data['wallet'] += current_roi
+                t['roi_paid'] = True
+                update_user(name, data)
 
-        # 3. THE UI CARD
+        # HTML Component for Card
         st.markdown(f"""
-            <div class='user-box'>
-                <div style='color:white; font-size:16px;'>Capital: ₱{t['amt']:,.1f}</div>
-                <div class='roi-label'>Accumulated ROI:</div>
-                <div class='roi-text'>₱{current_roi:,.4f}</div>
-                <div style='color:#8c8f99; font-size:13px; margin-bottom:20px;'>
-                    Total to Receive: ₱{t['amt']*0.20:,.2f}
-                </div>
-                
-                <div style='color:white; font-size:14px; margin-bottom:5px;'>
-                    <b>Approved:</b> {st_t.strftime('%Y-%m-%d %I:%M %p')}
-                </div>
-                <div style='color:white; font-size:14px;'>
-                    <b>Maturity:</b> {et_t.strftime('%Y-%m-%d %I:%M %p')}
-                </div>
-                
-                <div style='color:#ff4b4b; font-weight:bold; font-size:16px; margin-top:15px;'>
-                    ⌛ TIME REMAINING: {time_str}
-                </div>
+            <div class="cycle-card">
+                <div class="capital-text">Capital: <span class="peso-symbol">₱</span>{t['amt']:,.1f}</div>
+                <div class="roi-label-small">ACCUMULATED ROI:</div>
+                <div class="roi-value-large"><span class="peso-symbol">₱</span>{current_roi:,.4f}</div>
+                <div class="total-receive">Total to Receive: ₱{t['amt']*0.20:,.2f}</div>
+                <div class="timer-text">⌛ TIME REMAINING: {time_str}</div>
+                <div class="pullout-banner">{banner}</div>
             </div>
         """, unsafe_allow_html=True)
         
-        # 4. PULL OUT LOGIC
-        if now < et_t:
-            st.markdown(f"""
-                <div class='pull-out-info'>
-                    AVAILABLE TO PULL OUT CAPITAL FROM {et_t.strftime('%b %d, %I:%M %p')}<br>
-                    TO {(et_t + timedelta(hours=1)).strftime('%I:%M %p')}
-                </div>
-            """, unsafe_allow_html=True)
-        else:
+        if matured:
             if st.button(f"✅ PULL OUT CAPITAL (₱{t['amt']:,})", key=f"pull_{actual_idx}"):
                 data['wallet'] += t['amt']
                 data['inv'].pop(actual_idx)
                 update_user(name, data)
                 st.rerun()
-                    
 
 # ==========================================
-# BLOCK 8: ADMIN BOSS OVERVIEW
+# BLOCK 6: BOSS ADMIN PANEL
 # ==========================================
 elif st.session_state.is_boss:
-    st.title("👑 BOSS OVERVIEW")
+    st.title("👑 ADMIN OVERVIEW")
     all_u = load_registry()
     for u_n, u_d in all_u.items():
         for tx in u_d.get('tx', []):
             if tx['status'] == "PENDING":
-                st.write(f"USER: {u_n} | {tx['type']} | ₱{tx['amt']} | {tx.get('date')}")
-                if st.button(f"APPROVE {u_n} {tx['amt']} ##{random.randint(0,999)}"):
+                st.info(f"USER: {u_n} | {tx['type']} | ₱{tx['amt']}")
+                if st.button(f"APPROVE {u_n} ##{random.randint(1,999)}"):
                     tx['status'] = "SUCCESSFUL"
                     if tx['type'] == "DEP":
                         u_d.setdefault('inv', []).append({"amt": tx['amt'], "start": datetime.now().isoformat(), "end": (datetime.now() + timedelta(days=7)).isoformat(), "roi_paid": False})
                     update_user(u_n, u_d); st.rerun()
-    if st.button("EXIT ADMIN"): st.session_state.is_boss = False; st.rerun()
-                        
+    if st.button("EXIT ADMIN"): 
+        st.session_state.is_boss = False
+        st.rerun()
+    
