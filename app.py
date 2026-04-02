@@ -212,9 +212,12 @@ elif st.session_state.user:
     else:
         now = datetime.now()
         # reversed() ensures the latest added capital is displayed first
-        for idx, a in reversed(list(enumerate(active))):
+                for idx, a in reversed(list(enumerate(active))):
             start_dt = datetime.fromisoformat(a['start_time'])
             end_dt = start_dt + timedelta(days=7)
+            # This is one hour after maturity as you requested
+            expiry_dt = end_dt + timedelta(hours=1)
+            
             total_roi = a['amount'] * 1.20
             days_elapsed = min(7.0, (now - start_dt).total_seconds() / 86400)
             live_profit = (a['amount'] * 0.20) * (max(0, days_elapsed) / 7)
@@ -226,22 +229,29 @@ elif st.session_state.user:
                         <b style="color:#00ff88;">ROI: ₱{total_roi:,.2f}</b>
                     </div>
                     <small>LIVE PROFIT: ₱{live_profit:,.2f}</small><br>
-                    <small>START: {start_dt.strftime('%Y-%m-%d %I:%M %p')} | END: {end_dt.strftime('%Y-%m-%d %I:%M %p')}</small>
+                    <p style="color:#ffcc00; font-size:12px; margin-top:5px;">
+                        ⚠️ Capital and interest available to pull out on: <br>
+                        <b>{end_dt.strftime('%Y-%m-%d %I:%M %p')}</b> until <b>{expiry_dt.strftime('%I:%M %p')}</b>
+                    </p>
                 </div>
             """, unsafe_allow_html=True)
             
-            if now >= end_dt:
-                if st.button(f"📥 PULL OUT ₱{total_roi:,.2f}", key=f"p_{idx}"):
-                    data['wallet'] += total_roi
-                    data.setdefault('history', []).append({
-                        "type": "PULL_OUT", 
-                        "amount": total_roi, 
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        "status": "CONFIRMED"
-                    })
-                    active.pop(idx)
-                    update_user(st.session_state.user, data)
-                    st.rerun()
+            # Button is now ALWAYS visible
+            # It is only CLICKABLE (enabled) during that 1-hour window
+            is_clickable = end_dt <= now <= expiry_dt
+            
+            if st.button(f"📥 PULL OUT ₱{total_roi:,.2f}", key=f"p_{idx}", disabled=not is_clickable):
+                data['wallet'] += total_roi
+                data.setdefault('history', []).append({
+                    "type": "PULL_OUT", 
+                    "amount": total_roi, 
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                    "status": "CONFIRMED"
+                })
+                active.pop(idx)
+                update_user(st.session_state.user, data)
+                st.rerun()
+                
                     
 
         st.markdown("### 🤝 REFERRAL COMMISSIONS (20%)")
