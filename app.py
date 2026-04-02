@@ -64,6 +64,7 @@ if st.session_state.page == "ad" and not st.session_state.user and not st.sessio
             st.session_state.page = "login"
             st.rerun()
 
+    
     # 3. THE ADVERTISEMENT BOX
     st.markdown("""
         <div class="ad-panel" style="margin-top: 15px;">
@@ -85,6 +86,87 @@ if st.session_state.page == "ad" and not st.session_state.user and not st.sessio
             st.session_state.admin_mode = False
             st.rerun()
             
+# --- PAGE 2: ACCESS PORTAL ---
+elif st.session_state.page == "login" and not st.session_state.user:
+    st.markdown("<h1 style='text-align:center; color:#00eeff;'>ACCESS PORTAL</h1>", unsafe_allow_html=True)
+    
+    col_nav1, col_nav2 = st.columns(2)
+    if 'sub_page' not in st.session_state: st.session_state.sub_page = "select"
+
+    with col_nav1:
+        if st.button("MEMBER LOG IN", use_container_width=True, key="btn_log"):
+            st.session_state.sub_page = "login_form"
+    with col_nav2:
+        if st.button("REGISTER AS MEMBER", use_container_width=True, key="btn_reg"):
+            st.session_state.sub_page = "reg_form"
+
+    st.markdown("---")
+
+    if st.session_state.sub_page == "login_form":
+        u_name = st.text_input("Username", key="l_u")
+        u_pin = st.text_input("6-Digit PIN", type="password", key="l_p")
+        if st.button("ENTER DASHBOARD", key="exec_l"):
+            reg = load_registry()
+            if u_name in reg and str(reg[u_name].get('pin')) == str(u_pin):
+                st.session_state.user = u_name
+                st.rerun()
+            else: st.error("Invalid Credentials")
+
+    elif st.session_state.sub_page == "reg_form":
+        st.warning("PLEASE USE CAPSLOCK FOR ALL NAME FIELDS")
+        f_name = st.text_input("FIRST NAME", key="reg_f").upper()
+        m_name = st.text_input("MIDDLE NAME", key="reg_m").upper()
+        l_name = st.text_input("LAST NAME", key="reg_l").upper()
+        
+        # 6-Digit PIN Requirement
+        new_pin = st.text_input("CREATE 6-DIGIT PASSCODE", type="password", max_chars=6, key="reg_pin")
+        
+        st.info("ONLY ACTIVE INVESTOR IS ALLOWED AS INVITOR. IF NONE, TYPE 'DIRECT'")
+        inv_input = st.text_input("INVITOR FULL NAME", key="reg_inv").upper()
+
+        # --- STRICT MANUAL INVITOR LOGIC ---
+        reg = load_registry()
+        is_valid = False
+        final_invitor = ""
+
+        # Check if the user manually typed "DIRECT"
+        if inv_input == "DIRECT":
+            is_valid = True
+            final_invitor = "DIRECT"
+            st.success("Proceeding as Direct Member.")
+        
+        # Check if they typed a specific name
+        elif inv_input.strip() != "":
+            if inv_input in reg:
+                # Check for active investment in their history
+                if len(reg[inv_input].get('inv', [])) > 0:
+                    is_valid = True
+                    final_invitor = inv_input
+                    st.success(f"Verified: {inv_input} is an Active Investor.")
+                else:
+                    st.error("This person is not an active investor.")
+            else:
+                st.error("Invitor name not found in system.")
+        
+        # PROCEED button only appears if is_valid is True
+        if is_valid and len(new_pin) == 6 and f_name and l_name:
+            if st.button("PROCEED TO ACCOUNT CREATION", key="reg_final", use_container_width=True):
+                username = f"{f_name}_{l_name}"
+                new_data = {
+                    "pin": new_pin,
+                    "wallet": 0.0,
+                    "inv": [],
+                    "full_name": f"{f_name} {m_name} {l_name}",
+                    "referred_by": final_invitor
+                }
+                update_user(username, new_data)
+                st.success(f"Account Created! Welcome to ISMEX.")
+                st.session_state.sub_page = "login_form"
+
+    if st.button("← BACK TO ADVERTISEMENT"):
+        st.session_state.page = "ad"
+        st.rerun()
+        
 
 # ==========================================
 # BLOCK 6: ADMIN CONTROL
