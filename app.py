@@ -144,7 +144,7 @@ elif st.session_state.user:
                     data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
                     update_user(st.session_state.user, data); st.success("Cycle Started!"); st.session_state.action_type = None; st.rerun()
 
-    # --- RUNNING CAPITALS (BELOW BUTTONS) ---
+    # --- RUNNING CAPITALS ---
     st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active:
@@ -158,7 +158,7 @@ elif st.session_state.user:
             end_dt = start_dt + timedelta(days=7)
             grace_end = end_dt + timedelta(hours=1)
             
-            # ROI Calculation
+            # ROI Calculation (Visual Only)
             total_duration = (end_dt - start_dt).total_seconds()
             elapsed = (now - start_dt).total_seconds()
             progress = min(elapsed / total_duration, 1.0) if elapsed > 0 else 0
@@ -168,7 +168,7 @@ elif st.session_state.user:
                 a['amount'] = a['amount'] * 1.20 
                 a['start_time'] = now.isoformat()
                 needs_update = True
-                st.toast(f"Capital ₱{a['amount']:,} recycled with ROI.")
+                st.toast(f"Capital recycled with ROI.")
                 start_dt, end_dt, grace_end = now, now + timedelta(days=7), now + timedelta(days=7, hours=1)
 
             st.markdown(f"""
@@ -236,26 +236,29 @@ else:
 
     st.markdown("""
         <div style="background: linear-gradient(135deg, #1c1e26 0%, #0e1117 100%); padding:30px; border-radius:15px; border:1px solid #00ff88; margin-bottom:20px;">
-            <div style="text-align:center; margin-bottom:20px;">
-                <h2 style="color:#00ff88; margin:0;">🚀 AI-POWERED SCALPING ENGINE</h2>
-                <p style="color:#8c8f99;">Your capital works 24/7 in the global markets.</p>
+            <div style="text-align:center; margin-bottom:30px;">
+                <h1 style="color:#00ff88; margin:0; letter-spacing:2px;">WHERE WEALTH NEVER SLEEPS</h1>
+                <p style="color:#ffffff; font-size:18px; font-weight:bold;">Turn Your Static Savings into a High-Velocity Wealth Engine.</p>
             </div>
-            <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
-                <div style="background:#262933; padding:15px; border-radius:10px; flex:1; min-width:200px; border-bottom:3px solid #00eeff;">
-                    <h4 style="margin:0; color:#00eeff;">FIXED RETURNS</h4>
-                    <h2 style="margin:5px 0;">20% <span style="font-size:14px; color:#8c8f99;">Every 7 Days</span></h2>
-                    <p style="font-size:12px; color:#8c8f99;">Compounding interest automatically added upon maturity.</p>
-                </div>
-                <div style="background:#262933; padding:15px; border-radius:10px; flex:1; min-width:200px; border-bottom:3px solid #00ff88;">
-                    <h4 style="margin:0; color:#00ff88;">REAL-TIME TRADING</h4>
-                    <h2 style="margin:5px 0;">98.4% <span style="font-size:14px; color:#8c8f99;">Success Rate</span></h2>
-                    <p style="font-size:12px; color:#8c8f99;">Our AI executes 1,000+ micro-trades per second to secure your profit.</p>
-                </div>
+            
+            <div style="background: rgba(0,238,255,0.05); padding:20px; border-radius:10px; border: 1px solid #00eeff; margin-bottom:25px;">
+                <h3 style="color:#00eeff; margin-top:0;">🛡️ HOW YOUR CAPITAL CYCLES</h3>
+                <p style="color:#d1d1d1; line-height:1.6;">
+                    Your funds don't just sit in a bank; they move through the <b>Global Dark Pools</b> and <b>High-Frequency Arbitrage Markets</b>. 
+                    Our AI utilizes Shadow Liquidity to execute thousands of arbitrage cycles per hour—buying low in undervalued private exchanges and selling high in public markets instantly. 
+                    This 7-day cycle captures the 'spread' delivering a guaranteed <b>20% return</b>.
+                </p>
             </div>
-            <div style="margin-top:25px; background: rgba(0,255,136,0.05); padding:10px; border-radius:5px; border-left:4px solid #00ff88;">
-                <marquee scrollamount="5" style="color:#00ff88; font-family:monospace;">
-                    🔥 LIVE UPDATES: User ***4492 just withdrew ₱14,400.00 | 📈 MARKET ALERT: AI detected high volatility in NASDAQ | ✅ NEW DEPOSIT APPROVED: ₱50,000.00
-                </marquee>
+
+            <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px;">
+                <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00ff88; text-align:center;">
+                    <h4 style="margin:0; color:#00ff88;">UNMATCHED PRECISION</h4>
+                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Proprietary algorithms exploit market inefficiencies with 99.9% accuracy.</p>
+                </div>
+                <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00eeff; text-align:center;">
+                    <h4 style="margin:0; color:#00eeff;">IRON-CLAD SECURITY</h4>
+                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Your principal is protected by the very volatility that generates profits.</p>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -263,4 +266,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-    
+            
