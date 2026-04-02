@@ -246,19 +246,24 @@ else:
                 <p style="color:#d1d1d1; line-height:1.6;">
                     Your funds don't just sit in a bank; they move through the <b>Global Dark Pools</b> and <b>High-Frequency Arbitrage Markets</b>. 
                     Our AI utilizes Shadow Liquidity to execute thousands of arbitrage cycles per hour—buying low in undervalued private exchanges and selling high in public markets instantly. 
-                    This 7-day cycle captures the 'spread' delivering a guaranteed <b>20% return</b>.
+                    This 7-day cycle captures the 'spread' delivering a guaranteed <b>20% return</b> directly to your account.
                 </p>
             </div>
 
             <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px;">
                 <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00ff88; text-align:center;">
                     <h4 style="margin:0; color:#00ff88;">UNMATCHED PRECISION</h4>
-                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Proprietary algorithms exploit market inefficiencies with 99.9% accuracy.</p>
+                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Proprietary algorithms exploit market inefficiencies with 99.9% execution accuracy.</p>
                 </div>
                 <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00eeff; text-align:center;">
                     <h4 style="margin:0; color:#00eeff;">IRON-CLAD SECURITY</h4>
-                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Your principal is protected by the very volatility that generates profits.</p>
+                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Your principal is protected by the very volatility that generates our massive profits.</p>
                 </div>
+            </div>
+
+            <div style="text-align:center; margin-top:30px; border-top: 1px solid #444; padding-top:20px;">
+                <h2 style="color:#ffd700; margin:0;">STOP WATCHING. START EARNING.</h2>
+                <p style="color:#8c8f99;">The market waits for no one. Secure your slot in the next 7-day cycle today.</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -266,4 +271,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-            
+                
