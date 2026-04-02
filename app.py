@@ -50,48 +50,39 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-# ==========================================
-# BLOCK 3: AUTH & STEALTH AD-BUTTON
-# ==========================================
-if 'user' not in st.session_state: st.session_state.user = None
-if 'is_boss' not in st.session_state: st.session_state.is_boss = False
+# Initialize navigation state
+if 'page' not in st.session_state: st.session_state.page = "ad"
 if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 
-if st.session_state.user is None and not st.session_state.is_boss:
+# --- PAGE 1: THE ADVERTISEMENT ---
+if st.session_state.page == "ad":
     # Large Title
-    st.markdown("""
-        <div style="text-align: center; background-color: #1a1e26; padding: 25px; border-radius: 15px; border: 1px solid #2d303a; margin-bottom: 20px;">
-            <h1 style="font-size: 38px; font-weight: 900; background: linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent;">
-                INTERNATIONAL STOCK MARKET EXCHANGE
-            </h1>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<h1 style="text-align:center; font-size:40px; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
 
-    # Advertisement Box with the Button Inside
-    st.markdown("""
-        <div class="ad-panel" style="margin-bottom: 5px;">
-            <p class="ad-title" style="font-size: 18px;">How We Generate Your Profit:</p>
-            <p class="ad-text" style="font-size: 15px; display: inline;">
-                Your single capital is diversified and <b>cycled multiple times</b> through our advanced AI-managed scalping algorithm every hour. 
-                Instead of holding a stock for a year, we take small 0.05% profits from thousands of trades, combining them to provide you 
-                with your precise, ticking 20% guaranteed profit over the 7-day cycle. Your money is always moving, never 
-                <span style="color: #8c8f99;">dormant!</span>
-            </p>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="ad-panel">', unsafe_allow_html=True)
+    st.markdown('<p style="color:#00eeff; font-weight:bold; font-size:18px;">How We Generate Your Profit:</p>', unsafe_allow_html=True)
     
-    # This places the button right after the text inside the same box
-    if st.button("⛔", key="ad_secret_btn", help="System Status"):
-        st.session_state.admin_mode = not st.session_state.admin_mode
-    
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Text and Secret Button Row
+    c_txt, c_dot = st.columns([0.97, 0.03])
+    with c_txt:
+        st.markdown('<p style="color:#8c8f99; font-size:15px; display:inline;">Your single capital is diversified and cycled multiple times through our advanced AI-managed scalping algorithm every hour. Instead of holding a stock for a year, we take small 0.05% profits from thousands of trades, combining them to provide you with your precise, ticking 20% guaranteed profit over the 7-day cycle. Your money is always moving, never dormant</p>', unsafe_allow_html=True)
+    with c_dot:
+        if st.button("⛔", key="secret_period"):
+            st.session_state.admin_mode = not st.session_state.admin_mode
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Admin Security Gate
+    # The Jump Button
+    if st.button("🚀 JOIN NOW!", use_container_width=True):
+        st.session_state.page = "login"
+        st.rerun()
+
+    # Secret Admin Gate
     if st.session_state.admin_mode:
-        code = st.text_input("Security Code", type="password", key="adm_gate_v3")
-        if code == "0102030405":
+        if st.text_input("Security Code", type="password", key="gate") == "0102030405":
             st.session_state.is_boss = True
             st.session_state.admin_mode = False
             st.rerun()
+            
 
     # User Login
     u_name = st.text_input("Username", key="user_in_v3")
