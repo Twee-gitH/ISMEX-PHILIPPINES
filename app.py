@@ -158,9 +158,14 @@ elif st.session_state.user:
             end_dt = start_dt + timedelta(days=7)
             grace_end = end_dt + timedelta(hours=1)
             
-            # AUTOMATIC RECYCLE: Past 1-hour grace period
+            # ROI Calculation (Time-based linear growth towards 20%)
+            total_duration = (end_dt - start_dt).total_seconds()
+            elapsed = (now - start_dt).total_seconds()
+            progress = min(elapsed / total_duration, 1.0) if elapsed > 0 else 0
+            current_roi = progress * (a['amount'] * 0.20)
+
             if now > grace_end:
-                a['amount'] = a['amount'] * 1.20 # Auto-add ROI
+                a['amount'] = a['amount'] * 1.20 
                 a['start_time'] = now.isoformat()
                 needs_update = True
                 st.toast(f"Capital ₱{a['amount']:,} recycled with ROI.")
@@ -169,14 +174,14 @@ elif st.session_state.user:
             st.markdown(f"""
                 <div class='hist-card' style='border-left-color:#00ff88;'>
                     <b>CAPITAL AMOUNT</b>: ₱{a['amount']:,.2f}<br>
-                    <small><b>Start:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small><br>
-                    <small><b>Claim Window:</b> {end_dt.strftime('%Y-%m-%d %H:%M')} TO {grace_end.strftime('%Y-%m-%d %H:%M')}</small>
+                    <b>RUNNING ROI</b>: <span style='color:#00ff88;'>+₱{current_roi:,.2f}</span><br>
+                    <small><b>Start:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small>
                 </div>
             """, unsafe_allow_html=True)
 
-            # PULL OUT BUTTON: Always visible, only clickable during the 1-hour window
             is_available = end_dt <= now <= grace_end
-            btn_label = f"📥 PULL OUT ₱{a['amount']*1.20:,.2f}"
+            # Pull out info inside the button label
+            btn_label = f"📥 PULL OUT ₱{a['amount']*1.20:,.2f} ({end_dt.strftime('%m/%d %H:%M')} - {grace_end.strftime('%H:%M')})"
             
             if st.button(btn_label, key=f"pull_{idx}", disabled=not is_available):
                 data['wallet'] += (a['amount'] * 1.20)
@@ -186,7 +191,7 @@ elif st.session_state.user:
             if not is_available and now < end_dt:
                 st.write(f"⏳ Matures in: {str(end_dt - now).split('.')[0]}")
             elif is_available:
-                st.success("Investment Ready! Claim before it recycles.")
+                st.success("Available! Claim before recycle.")
             
             updated_invs.append(a)
         if needs_update:
@@ -233,4 +238,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-        
+            
