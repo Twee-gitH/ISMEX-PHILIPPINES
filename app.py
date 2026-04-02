@@ -40,7 +40,7 @@ st.markdown("""
         background-color: transparent !important; border: none !important; color: #8c8f99 !important;
         font-size: 15px !important; padding: 0 !important; margin-left: -5px !important; display: inline !important;
     }
-    .hist-card { background: #1c1e26; padding: 10px; border-radius: 5px; margin-bottom: 8px; border-left: 5px solid #444; }
+    .hist-card { background: #1c1e26; padding: 10px; border-radius: 5px; margin-bottom: 8px; border-left: 5px solid #00ff88; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -158,7 +158,7 @@ elif st.session_state.user:
             end_dt = start_dt + timedelta(days=7)
             grace_end = end_dt + timedelta(hours=1)
             
-            # ROI Calculation (Visual Only)
+            # ROI Calculation (Visual Growth)
             total_duration = (end_dt - start_dt).total_seconds()
             elapsed = (now - start_dt).total_seconds()
             progress = min(elapsed / total_duration, 1.0) if elapsed > 0 else 0
@@ -172,10 +172,10 @@ elif st.session_state.user:
                 start_dt, end_dt, grace_end = now, now + timedelta(days=7), now + timedelta(days=7, hours=1)
 
             st.markdown(f"""
-                <div class='hist-card' style='border-left-color:#00ff88;'>
-                    <b>CAPITAL AMOUNT</b>: ₱{a['amount']:,.2f}<br>
+                <div class='hist-card'>
+                    <b>RUNNING CAPITAL</b>: ₱{a['amount']:,.2f}<br>
                     <b>RUNNING ROI</b>: <span style='color:#00ff88;'>+₱{current_roi:,.2f}</span><br>
-                    <small><b>Start:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small>
+                    <small><b>Started:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -188,7 +188,7 @@ elif st.session_state.user:
                 update_user(st.session_state.user, data); st.balloons(); st.rerun()
             
             if not is_available and now < end_dt:
-                st.write(f"⏳ Matures in: {str(end_dt - now).split('.')[0]}")
+                st.write(f"⏳ Time Remaining: {str(end_dt - now).split('.')[0]}")
             elif is_available:
                 st.success("Available! Claim before recycle.")
             
@@ -199,7 +199,7 @@ elif st.session_state.user:
 
     # --- TRANSACTION HISTORY ---
     st.markdown("### 📜 TRANSACTION HISTORY")
-    tabs = st.tabs(["⏳ Waiting Approval", "✅ Approved"])
+    tabs = st.tabs(["⏳ Waiting", "✅ Approved"])
     with tabs[0]:
         pending = data.get('pending_actions', [])
         if not pending: st.info("No waiting transactions.")
@@ -253,7 +253,7 @@ else:
             <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px;">
                 <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00ff88; text-align:center;">
                     <h4 style="margin:0; color:#00ff88;">UNMATCHED PRECISION</h4>
-                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Proprietary algorithms exploit market inefficiencies with 99.9% execution accuracy.</p>
+                    <p style="color:#8c8f99; font-size:14px; margin-top:10px;">Proprietary algorithms exploit market inefficiencies with 99.9% accuracy.</p>
                 </div>
                 <div style="background:#262933; padding:20px; border-radius:10px; flex:1; min-width:250px; border-top:4px solid #00eeff; text-align:center;">
                     <h4 style="margin:0; color:#00eeff;">IRON-CLAD SECURITY</h4>
@@ -271,4 +271,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-                
+            
