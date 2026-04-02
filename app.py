@@ -144,7 +144,20 @@ elif st.session_state.user:
     if 'wallet' not in data: data['wallet'] = 0.0
     
     col1, col2 = st.columns([0.8, 0.2])
-    with col1: st.write(f"Logged in as: **{data.get('full_name')}**")
+    with     col1, col2 = st.columns([0.8, 0.2])
+    with col1: 
+        st.write(f"Logged in as: **{data.get('full_name')}**")
+        
+        # --- INSERTED REFERRAL LINK BLOCK ---
+        base_url = "https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/"
+        my_ref_link = f"{base_url}?ref={st.session_state.user.replace(' ', '+')}"
+        st.info(f"🔗 **YOUR REFERRAL LINK:**\n\n{my_ref_link}")
+        # ------------------------------------
+
+    with col2:
+        if st.button("LOGOUT"):
+            st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
+            
             # THIS MAKES THE LINK SHOW AT THE VERY TOP
     base_url = "https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/"
     my_ref_link = f"{base_url}?ref={st.session_state.user.replace(' ', '+')}"
