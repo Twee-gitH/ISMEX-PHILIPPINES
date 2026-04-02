@@ -112,6 +112,7 @@ elif st.session_state.user:
 
     if st.session_state.action_type == "DEP":
         with st.form("d"):
+            st.info("📢 SEND DEPOSIT TO:\n\n**GCASH:** 09xxxxxxxxx\n**NAME:** T**S** G.") # ADDED AS ASKED
             amt_d = st.number_input("Deposit Amount", min_value=100.0)
             st.file_uploader("Browse Receipt", type=['jpg','png','jpeg'])
             if st.form_submit_button("Submit"):
@@ -143,7 +144,7 @@ elif st.session_state.user:
                     data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
                     update_user(st.session_state.user, data); st.success("Cycle Started!"); st.session_state.action_type = None; st.rerun()
 
-    # --- MOVED HERE: RUNNING CAPITALS (BELOW BUTTONS) ---
+    # --- RUNNING CAPITALS ---
     st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active:
@@ -183,7 +184,7 @@ elif st.session_state.user:
             data['inv'] = updated_invs
             update_user(st.session_state.user, data)
 
-    # --- SECTION: TRANSACTION HISTORY (AT THE BOTTOM) ---
+    # --- TRANSACTION HISTORY ---
     st.markdown("### 📜 TRANSACTION HISTORY")
     tabs = st.tabs(["⏳ Waiting Approval", "✅ Approved"])
     with tabs[0]:
@@ -223,3 +224,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
+        
