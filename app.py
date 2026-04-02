@@ -81,31 +81,33 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# BLOCK 3: AUTH & STEALTH HEADER (FIXED)
+# BLOCK 3: AUTH & MEGA STEALTH HEADER
 # ==========================================
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
 if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 
 if st.session_state.user is None and not st.session_state.is_boss:
-    # This container and CSS flex-box keeps the button exactly after the text
-    st.markdown('<div class="title-banner">', unsafe_allow_html=True)
+    # This styling makes the title massive and keeps the button attached
+    st.markdown("""
+        <div style="text-align: center; background-color: #1a1e26; padding: 30px; border-radius: 15px; border: 1px solid #2d303a; margin-bottom: 20px;">
+            <h1 style="display: inline; font-size: 45px; font-weight: 900; background: linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; vertical-align: middle;">
+                INTERNATIONAL STOCK MARKET EXCHANGE
+            </h1>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # 0.88 to 0.12 ratio ensures the button stays on the far right of the text in one line
-    col_text, col_btn = st.columns([0.88, 0.12])
-    with col_text:
-        st.markdown('<p class="main-title" style="text-align:right;">INTERNATIONAL STOCK MARKET EXCHANGE</p>', unsafe_allow_html=True)
+    # We place the secret button right under the title for mobile compatibility
+    col_l, col_btn, col_r = st.columns([0.45, 0.1, 0.45])
     with col_btn:
-        # The Secret Trigger
-        if st.button("⛔"): 
+        if st.button("⛔", help="System Status"): 
             st.session_state.admin_mode = not st.session_state.admin_mode
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # The Restored Full Advertisement
+    # Restored Advertisement
     st.markdown("""
         <div class="ad-panel">
-            <p class="ad-title">How We Generate Your Profit:</p>
-            <p class="ad-text">
+            <p class="ad-title" style="font-size: 18px;">How We Generate Your Profit:</p>
+            <p class="ad-text" style="font-size: 15px;">
                 Your single capital is diversified and <b>cycled multiple times</b> through our advanced AI-managed scalping algorithm every hour. 
                 Instead of holding a stock for a year, we take small 0.05% profits from thousands of trades, combining them to provide you 
                 with your precise, ticking 20% guaranteed profit over the 7-day cycle. Your money is always moving, never dormant!
@@ -113,24 +115,25 @@ if st.session_state.user is None and not st.session_state.is_boss:
         </div>
     """, unsafe_allow_html=True)
 
-    # Admin Security Gate
+    # Admin PIN Gate
     if st.session_state.admin_mode:
-        code = st.text_input("Security Code", type="password", key="admin_gate_key")
+        code = st.text_input("Security Code", type="password", key="adm_pin_gate")
         if code == "0102030405":
             st.session_state.is_boss = True
             st.session_state.admin_mode = False
             st.rerun()
 
-    # Standard Login Inputs
-    u_name = st.text_input("Username", key="login_user")
-    u_pin = st.text_input("PIN", type="password", key="login_pin")
-    if st.button("ENTER DASHBOARD", key="login_btn"):
+    # User Login
+    u_name = st.text_input("Username", key="main_user_in")
+    u_pin = st.text_input("PIN", type="password", key="main_pin_in")
+    if st.button("ENTER DASHBOARD", key="main_login_btn"):
         reg = load_registry()
         if u_name in reg and str(reg[u_name].get('pin')) == str(u_pin):
             st.session_state.user = u_name
             st.rerun()
         else:
             st.error("Access Denied")
+            
             
 
     
