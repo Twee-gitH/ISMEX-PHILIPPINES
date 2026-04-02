@@ -62,14 +62,29 @@ if st.session_state.is_boss:
             with st.expander(f"{action['type']} - {username} (₱{action.get('amount', 0):,.2f})"):
                 ca, cr = st.columns(2)
                 if ca.button("✅ APPROVE", key=f"app_{username}_{idx}"):
+                    # Record in History as Confirmed/Approved
+                    u_data.setdefault('history', []).append({
+                        "type": action['type'],
+                        "amount": action['amount'],
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "status": "CONFIRMED" if action['type'] == "DEPOSIT" else "WITHDRAWAL APPROVED"
+                    })
+                    
+                    # If Deposit, turn into Running Capital
                     if action['type'] == "DEPOSIT":
-                        u_data.setdefault('inv', []).append({"amount": action['amount'], "start_time": datetime.now().isoformat()})
+                        u_data.setdefault('inv', []).append({
+                            "amount": action['amount'], 
+                            "start_time": datetime.now().isoformat()
+                        })
+                    
                     u_data['pending_actions'].pop(idx)
                     update_user(username, u_data); st.rerun()
+                    
                 if cr.button("❌ REJECT", key=f"rej_{username}_{idx}"):
                     if action['type'] == "WITHDRAW": u_data['wallet'] += action['amount']
                     u_data['pending_actions'].pop(idx)
                     update_user(username, u_data); st.rerun()
+                    
 
 # --- USER DASHBOARD ---
 elif st.session_state.user:
@@ -93,8 +108,20 @@ elif st.session_state.user:
     c1, c2, c3 = st.columns(3)
     if c1.button("📥 DEPOSIT"): st.session_state.action_type = "DEP"
     if c2.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
-    if c3.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
-
+        if c3.button("♻️ REINVEST"):
+        if data['wallet'] > 0:
+            amt = data['wallet']
+            data['wallet'] = 0
+            data.setdefault('inv', []).append({"amount": amt, "start_time": datetime.now().isoformat()})
+            # Log the recycle action
+            data.setdefault('history', []).append({
+                "type": "RECYCLE",
+                "amount": amt,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "RECYCLE RUNNING"
+            })
+            update_user(st.session_state.user, data); st.rerun()
+            
         # --- USER DASHBOARD DEPOSIT SECTION ---
     if st.session_state.action_type == "DEP":
         with st.form("d"):
@@ -148,11 +175,36 @@ elif st.session_state.user:
                     active.pop(idx)
                     update_user(st.session_state.user, data); st.rerun()
 
-    st.markdown("### 📜 TRANSACTION HISTORY")
-    t1, t2 = st.tabs(["⏳ Waiting", "✅ Approved"])
-    with t1:
-        for p in data.get('pending_actions', []):
-            st.write(f"**{p['type']}**: ₱{p['amount']:,.2f} - {p['date'][:16]}")
+        st.markdown("### 📜 TRANSACTION HISTORY")
+    
+    # 1. PENDING TRANSACTIONS (Waiting Confirmation)
+    st.write("---")
+    st.subheader("⏳ PENDING REQUESTS")
+    pending = data.get('pending_actions', [])
+    if not pending:
+        st.caption("No pending requests.")
+    for p in pending:
+        label = "WAITING CONFIRMATION" if p['type'] == "DEPOSIT" else "WITHDRAWAL REQUESTED"
+        st.write(f"**{label}**: ₱{p['amount']:,.2f} | {p['date']}")
+
+    # 2. COMPLETED HISTORY (Confirmed/Approved)
+    st.write("---")
+    st.subheader("✅ COMPLETED HISTORY")
+    history = data.get('history', [])
+    if not history:
+        st.caption("No completed transactions yet.")
+    for h in reversed(history):
+        st.write(f"**{h['status']}**: ₱{h['amount']:,.2f} | {h['date']}")
+
+    # 3. RECYCLE HISTORY
+    st.write("---")
+    st.subheader("♻️ RECYCLE HISTORY")
+    active_inv = data.get('inv', [])
+    if not active_inv:
+        st.caption("No recycle running.")
+    for a in active_inv:
+        st.write(f"**RECYCLE RUNNING**: ₱{a['amount']:,.2f} | Started: {a['start_time'][:16]}")
+        
 
 # --- LOGIN / REGISTER ---
 elif st.session_state.page == "login":
