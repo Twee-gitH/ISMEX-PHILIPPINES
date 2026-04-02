@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta
 
 # ==========================================
-# BLOCK 1: THE CORE ENGINE (DATA & STATE)
+# DATA PERSISTENCE FUNCTIONS
 # ==========================================
 def load_registry():
     if os.path.exists("bpsm_registry.json"):
@@ -22,20 +22,17 @@ def update_user(name, data):
     with open("bpsm_registry.json", "w") as f: 
         json.dump(reg, f, indent=4, default=str)
 
-# Initialize session states
+# ==========================================
+# INITIALIZE SESSION STATES
+# ==========================================
 if 'page' not in st.session_state: st.session_state.page = "ad"
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
 if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 if 'sub_page' not in st.session_state: st.session_state.sub_page = "select"
 
-# --- LIVE REFRESH HEARTBEAT ---
-if st.session_state.user:
-    time.sleep(1)
-    st.rerun()
-
 # ==========================================
-# BLOCK 2: INTERFACE STYLES (UI)
+# GLOBAL UI STYLES
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
 st.markdown("""
@@ -51,7 +48,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# BLOCK 3: PAGE 1 - THE ADVERTISEMENT
+# PAGE 1: THE ADVERTISEMENT
 # ==========================================
 if st.session_state.page == "ad" and not st.session_state.user and not st.session_state.is_boss:
     st.markdown('<h1 style="text-align:center; font-size:45px; font-weight:900; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; margin-bottom:20px;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
@@ -84,7 +81,7 @@ if st.session_state.page == "ad" and not st.session_state.user and not st.sessio
             st.rerun()
 
 # ==========================================
-# BLOCK 4: ACCESS PORTAL (LOGIN/REG)
+# PAGE 2: ACCESS PORTAL (LOGIN/REG)
 # ==========================================
 elif st.session_state.page == "login" and not st.session_state.user and not st.session_state.is_boss:
     st.markdown("<h1 style='text-align:center; color:#00eeff;'>ACCESS PORTAL</h1>", unsafe_allow_html=True)
@@ -102,9 +99,10 @@ elif st.session_state.page == "login" and not st.session_state.user and not st.s
             db_key = u_name_in.replace(" ", "_")
             user_data = reg.get(db_key) or reg.get(u_name_in)
             if user_data and str(user_data.get('pin')) == str(u_pin):
-                st.session_state.user = db_key
+                st.session_state.user = db_key if db_key in reg else u_name_in
                 st.rerun()
-            else: st.error("Invalid Credentials")
+            else: 
+                st.error("Invalid Credentials. Check Name or PIN.")
 
     elif st.session_state.sub_page == "reg_form":
         f = st.text_input("FIRST NAME").upper().strip()
@@ -119,33 +117,39 @@ elif st.session_state.page == "login" and not st.session_state.user and not st.s
             st.session_state.sub_page = "login_form"
 
 # ==========================================
-# BLOCK 5: USER DASHBOARD
+# PAGE 3: USER DASHBOARD
 # ==========================================
 elif st.session_state.user:
     reg = load_registry()
     data = reg.get(st.session_state.user, {})
     
-    # --- MATURITY LOGIC (Update Wallet if 7 days passed) ---
+    # --- 1. MATURITY LOGIC (Update Wallet if 7 days passed) ---
     current_invs = data.get('inv', [])
     updated_invs = []
-    payout = 0
+    payout_made = False
     for i in current_invs:
-        if datetime.now() >= (datetime.fromisoformat(i['start_time']) + timedelta(days=7)):
-            payout += (i['amount'] * 1.20)
-        else: updated_invs.append(i)
+        end_time = datetime.fromisoformat(i['start_time']) + timedelta(days=7)
+        if datetime.now() >= end_time:
+            data['wallet'] += (i['amount'] * 1.20)
+            payout_made = True
+        else: 
+            updated_invs.append(i)
     
-    if payout > 0:
-        data['wallet'] += payout
+    if payout_made:
         data['inv'] = updated_invs
         update_user(st.session_state.user, data)
         st.balloons()
 
-    # --- UI DISPLAY ---
-    st.markdown(f"### BPSM | Welcome, {data.get('full_name')}")
-    if st.button("LOGOUT"):
-        st.session_state.user = None
-        st.rerun()
+    # --- 2. HEADER & LOGOUT ---
+    col1, col2 = st.columns([0.8, 0.2])
+    with col1:
+        st.markdown(f"### BPSM\nWelcome, {data.get('full_name')}")
+    with col2:
+        if st.button("LOGOUT"):
+            st.session_state.user = None
+            st.rerun()
 
+    # --- 3. BALANCE DISPLAY ---
     st.markdown(f"""
         <div style="background:#1c1e26; padding:20px; border-radius:10px; text-align:center; border:1px solid #00ff88;">
             <p style="color:#8c8f99; font-size:14px;">WITHDRAWABLE BALANCE</p>
@@ -153,18 +157,43 @@ elif st.session_state.user:
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### ⌛ ACTIVE CYCLES")
+    # --- 4. ACTIVE CYCLES ---
+    st.markdown("<br>### ⌛ ACTIVE CYCLES", unsafe_allow_html=True)
+    if not data.get('inv'):
+        st.info("No active cycles. Contact Admin to start an investment.")
+    
     for inv in data.get('inv', []):
         start = datetime.fromisoformat(inv['start_time'])
-        elapsed = (datetime.now() - start).total_seconds()
-        percent = min(elapsed / (7 * 24 * 3600), 1.0)
-        roi = (inv['amount'] * 0.20) * percent
+        end = start + timedelta(days=7)
+        now = datetime.now()
         
-        st.info(f"Capital: ₱{inv['amount']:,} | Current ROI: ₱{roi:,.4f}")
-        st.progress(percent)
+        # Calculate precise ROI for the ticker
+        total_sec = 7 * 24 * 3600
+        elapsed_sec = (now - start).total_seconds()
+        percent = min(elapsed_sec / total_sec, 1.0)
+        current_roi = (inv['amount'] * 0.20) * percent
+        
+        # Time remaining
+        remaining = end - now
+        d = remaining.days
+        h, rem = divmod(remaining.seconds, 3600)
+        m, s = divmod(rem, 60)
+
+        st.markdown(f"""
+            <div style="background:#16191f; border-left: 4px solid #00ff88; padding:15px; border-radius:5px; margin-bottom:10px; border: 1px solid #2d303a;">
+                <p style="margin:0; color:white; font-size:16px;">Capital: <b>₱{inv['amount']:,.1f}</b></p>
+                <p style="color:#00ff88; font-size:11px; margin:5px 0 0 0; letter-spacing:1px;">ACCUMULATED ROI:</p>
+                <h2 style="color:#00ff88; margin:0; font-family:monospace;">₱{current_roi:,.4f}</h2>
+                <p style="color:#ff4b4b; font-weight:bold; margin-top:10px; font-size:14px;">⌛ TIME LEFT: {d}D {h}H {m}M {s}S</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # --- 5. HEARTBEAT (MOVE TO BOTTOM TO FIX LOADING LOOP) ---
+    time.sleep(1)
+    st.rerun()
 
 # ==========================================
-# BLOCK 6: ADMIN PANEL
+# PAGE 4: ADMIN PANEL
 # ==========================================
 elif st.session_state.is_boss:
     st.title("👑 ADMIN CONTROL")
@@ -173,13 +202,21 @@ elif st.session_state.is_boss:
         st.rerun()
 
     reg = load_registry()
-    user_to_fund = st.selectbox("Select User", list(reg.keys()))
-    amt = st.number_input("Deposit Amount", min_value=0.0)
+    user_list = list(reg.keys())
     
-    if st.button("ACTIVATE 7-DAY CYCLE"):
-        reg[user_to_fund]['inv'].append({"amount": amt, "start_time": datetime.now().isoformat()})
-        update_user(user_to_fund, reg[user_to_fund])
-        st.success("Cycle Activated!")
-    
-    st.write("### Database Overview", reg)
+    if not user_list:
+        st.warning("No users registered yet.")
+    else:
+        target = st.selectbox("Select User to Fund", options=user_list)
+        amt = st.number_input("Investment Amount (₱)", min_value=100.0, step=100.0)
+        
+        if st.button("🚀 ACTIVATE 7-DAY CYCLE"):
+            new_inv = {"amount": amt, "start_time": datetime.now().isoformat()}
+            reg[target]["inv"].append(new_inv)
+            update_user(target, reg[target])
+            st.success(f"Success! ₱{amt} cycle added to {target}")
+
+    st.divider()
+    st.write("### Raw Database Management")
+    st.json(reg)
     
