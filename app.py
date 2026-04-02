@@ -115,16 +115,17 @@ elif st.session_state.user:
     data = reg.get(st.session_state.user, {})
     if 'wallet' not in data: data['wallet'] = 0.0
     
-    # FORCED REFERRAL LINK (Top of Dashboard)
+    # 🔗 REFERRAL LINK ADDED HERE AT THE TOP
     base_url = "https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/"
     my_ref_link = f"{base_url}?ref={st.session_state.user.replace(' ', '+')}"
+    st.info(f"🔗 **YOUR REFERRAL LINK:**\n\n{my_ref_link}")
 
-    st.subheader(f"Welcome, {data.get('full_name')}!")
-    st.markdown("### 🔗 YOUR UNIQUE REFERRAL LINK")
-    st.code(my_ref_link, language="text") # Fixed block at the top
-    
-    if st.button("LOGOUT"):
-        st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
+    col1, col2 = st.columns([0.8, 0.2])
+    with col1: 
+        st.write(f"Logged in as: **{data.get('full_name')}**")
+    with col2:
+        if st.button("LOGOUT"):
+            st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
 
     st.markdown(f"""
         <div style="background:#1c1e26; padding:20px; border-radius:10px; text-align:center; border:1px solid #00ff88;">
@@ -197,6 +198,8 @@ elif st.session_state.user:
 
     st.divider()
     st.markdown("### 🤝 REFERRAL COMMISSIONS (20%)")
+    st.code(my_ref_link)
+    
     comms = data.get('commissions', [])
     if not comms: st.info("No referral commissions yet.")
     else:
