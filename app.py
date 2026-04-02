@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import time  # New import for refresh timing
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -19,12 +20,18 @@ def update_user(name, data):
     with open("bpsm_registry.json", "w") as f: 
         json.dump(reg, f, indent=4, default=str)
 
-# Initialize states to prevent app crashes
+# Initialize states
 if 'page' not in st.session_state: st.session_state.page = "ad"
 if 'user' not in st.session_state: st.session_state.user = None
 if 'is_boss' not in st.session_state: st.session_state.is_boss = False
 if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 if 'sub_page' not in st.session_state: st.session_state.sub_page = "select"
+
+# --- LIVE REFRESH HEARTBEAT ---
+# This makes the numbers tick every second when logged in
+if st.session_state.user:
+    time.sleep(1)
+    st.rerun()
 
 # ==========================================
 # BLOCK 2: INTERFACE STYLES (UI)
@@ -92,7 +99,6 @@ elif st.session_state.page == "login" and not st.session_state.user and not st.s
 
     st.markdown("---")
 
-    # LOGIN FORM
     if st.session_state.sub_page == "login_form":
         st.info("USER NAME: INPUT YOUR 1ST NAME, MIDDLE NAME, AND LAST NAME")
         u_name_in = st.text_input("FULL USERNAME (ALL CAPS)", key="l_u").upper().strip()
@@ -101,17 +107,13 @@ elif st.session_state.page == "login" and not st.session_state.user and not st.s
         
         if st.button("ENTER DASHBOARD"):
             reg = load_registry()
-            # Try matching exact name or underscore version
             formatted_name = u_name_in.replace(" ", "_")
             user_data = reg.get(u_name_in) or reg.get(formatted_name)
-            
             if user_data and str(user_data.get('pin')) == str(u_pin):
                 st.session_state.user = u_name_in if u_name_in in reg else formatted_name
                 st.rerun()
-            else:
-                st.error("Invalid Username or 6-Digit PIN")
+            else: st.error("Invalid Username or 6-Digit PIN")
 
-    # REGISTRATION FORM
     elif st.session_state.sub_page == "reg_form":
         st.warning("PLEASE USE CAPSLOCK FOR ALL NAME FIELDS")
         f_name = st.text_input("FIRST NAME", key="reg_f").upper()
@@ -131,23 +133,78 @@ elif st.session_state.page == "login" and not st.session_state.user and not st.s
 
         if is_valid and len(new_pin) == 6 and f_name and l_name:
             if st.button("PROCEED TO ACCOUNT CREATION", use_container_width=True):
-                # Save with underscores for database safety
                 db_username = f"{f_name}_{m_name}_{l_name}"
                 update_user(db_username, {"pin": new_pin, "wallet": 0.0, "inv": [], "full_name": f"{f_name} {m_name} {l_name}", "referred_by": inv_input})
-                st.success("Account Created! You can now Log In.")
+                st.success("Account Created!")
                 st.session_state.sub_page = "login_form"
 
-    if st.button("← BACK TO ADVERTISEMENT"):
-        st.session_state.page = "ad"
-        st.session_state.sub_page = "select"
-        st.rerun()
+# ==========================================
+# BLOCK 5: THE USER DASHBOARD (LIVE VERSION)
+# ==========================================
+elif st.session_state.user:
+    reg = load_registry()
+    data = reg.get(st.session_state.user, {})
+    
+    # Header
+    col1, col2 = st.columns([0.8, 0.2])
+    with col1:
+        st.markdown(f"### BPSM\nWelcome, {data.get('full_name', 'User')}")
+    with col2:
+        if st.button("LOGOUT"):
+            st.session_state.user = None
+            st.rerun()
+
+    # Balance Display
+    st.markdown(f"""
+        <div style="background:#1c1e26; padding:20px; border-radius:10px; text-align:center; border:1px solid #2d303a;">
+            <p style="color:#8c8f99; font-size:14px;">WITHDRAWABLE BALANCE</p>
+            <h1 style="color:#00ff88; font-size:50px; margin:0;">₱{data.get('wallet', 0):,.2f}</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    c1.button("📥 Deposit", use_container_width=True)
+    c2.button("💸 Withdraw", use_container_width=True)
+    c3.button("♻️ Reinvest", use_container_width=True)
+
+    # Active Cycles with Live Math
+    st.markdown('<p style="background:#2d303a; padding:5px 15px; border-left: 5px solid #ff4b4b; font-weight:bold;">⌛ ACTIVE CYCLES</p>', unsafe_allow_html=True)
+    
+    for inv in data.get('inv', []):
+        # Time calculations
+        start_time = datetime.fromisoformat(inv['start_time'])
+        end_time = start_time + timedelta(days=7)
+        now = datetime.now()
+        remaining = end_time - now
+        
+        if remaining.total_seconds() > 0:
+            # ROI Ticking math (20% over 7 days)
+            elapsed = (now - start_time).total_seconds()
+            total_sec = 7 * 24 * 3600
+            current_roi = (inv['amount'] * 0.20) * (elapsed / total_sec)
+            
+            # Formatting Time
+            d = remaining.days
+            h, rem = divmod(remaining.seconds, 3600)
+            m, s = divmod(rem, 60)
+            
+            st.markdown(f"""
+                <div style="background:#16191f; border-left: 4px solid #00ff88; padding:15px; border-radius:5px; margin-bottom:10px; border: 1px solid #2d303a;">
+                    <p style="margin:0;">Capital: <b>₱{inv['amount']:,.1f}</b></p>
+                    <p style="color:#00ff88; font-size:12px; margin:5px 0 0 0;">ACCUMULATED ROI:</p>
+                    <h2 style="color:#00ff88; margin:0; font-family:monospace;">₱{current_roi:,.4f}</h2>
+                    <p style="color:#8c8f99; font-size:13px;">Total to Receive: ₱{inv['amount']*1.2:,.2f}</p>
+                    <p style="color:#ff4b4b; font-weight:bold; margin-top:10px;">⌛ TIME REMAINING: {d}D {h}H {m}M {s}S</p>
+                </div>
+            """, unsafe_allow_html=True)
 
 # ==========================================
-# BLOCK 5: ADMIN PANEL
+# BLOCK 6: ADMIN PANEL
 # ==========================================
 elif st.session_state.is_boss:
     st.title("👑 ADMIN PANEL")
     if st.button("EXIT ADMIN"):
         st.session_state.is_boss = False
         st.rerun()
-    
+                                          
