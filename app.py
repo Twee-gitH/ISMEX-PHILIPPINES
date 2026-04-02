@@ -47,17 +47,18 @@ st.markdown("""
 # BLOCK 3: PAGE 1 - THE ADVERTISEMENT
 # ==========================================
 if st.session_state.page == "ad" and not st.session_state.user and not st.session_state.is_boss:
+    
     # 1. MEGA RAINBOW TITLE
-    st.markdown('<h1 style="text-align:center; font-size:45px; font-weight:900; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; margin-bottom:5px;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 style="text-align:center; font-size:45px; font-weight:900; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; margin-bottom:10px;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
 
-    # 2. CENTERED ADMIN BUTTON (Between Title and Box)
-    col_left, col_center, col_right = st.columns([0.46, 0.08, 0.46])
-    with col_center:
-        # We use a standard button here so it's easier to click when centered
-        if st.button("⛔", key="mid_admin_btn", help="System Status"):
+    # 2. CENTERED ADMIN BUTTON
+    # This uses a 3-column layout to force the button into the exact center
+    c_left, c_mid, c_right = st.columns([0.45, 0.1, 0.45])
+    with c_mid:
+        if st.button("⛔", key="mid_gate_trigger"):
             st.session_state.admin_mode = not st.session_state.admin_mode
 
-    # 3. THE ADVERTISEMENT BOX (Text is now fully inside)
+    # 3. THE ADVERTISEMENT BOX
     st.markdown("""
         <div class="ad-panel">
             <p style="color:#00eeff; font-weight:bold; font-size:18px; margin-bottom:10px;">How We Generate Your Profit:</p>
@@ -69,19 +70,20 @@ if st.session_state.page == "ad" and not st.session_state.user and not st.sessio
         </div>
     """, unsafe_allow_html=True)
 
-    # 4. JOIN BUTTON
-    st.markdown("<br>", unsafe_allow_html=True) # Adds a small space
-    if st.button("🚀 JOIN NOW!", use_container_width=True, key="main_join_btn"):
+    # 4. NAVIGATION BUTTON
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚀 JOIN NOW!", use_container_width=True, key="jump_to_login"):
         st.session_state.page = "login"
         st.rerun()
 
-    # Secret Admin Gate (Appears only when ⛔ is clicked)
+    # SECRET GATE (Appears only after clicking ⛔)
     if st.session_state.admin_mode:
-        code = st.text_input("Security Code", type="password", key="admin_gate_input")
+        code = st.text_input("Security Code", type="password", key="sec_code_input")
         if code == "0102030405":
             st.session_state.is_boss = True
             st.session_state.admin_mode = False
             st.rerun()
+            
             
 
 # ==========================================
