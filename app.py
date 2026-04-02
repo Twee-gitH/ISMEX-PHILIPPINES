@@ -146,73 +146,40 @@ elif st.session_state.user:
                 data.setdefault('pending_actions', []).append({"type": "DEPOSIT", "amount": amt_d, "date": str(datetime.now())})
                 update_user(st.session_state.user, data); st.success("Sent!"); st.session_state.action_type = None; st.rerun()
     
-    if st.session_state.action_type == "WITH":
-        with st.form("w"):
-            amt_w = st.number_input("Amount", min_value=100.0, max_value=data['wallet'])
-            bn, an, anum = st.text_input("Bank"), st.text_input("Account Name"), st.text_input("Account Number")
-            if st.form_submit_button("Request"):
-                data['wallet'] -= amt_w
-                data.setdefault('pending_actions', []).append({"type": "WITHDRAW", "amount": amt_w, "bank": bn, "acc_name": an, "acc_num": anum, "date": str(datetime.now())})
-                update_user(st.session_state.user, data); st.success("Requested!"); st.session_state.action_type = None; st.rerun()
+    st.session_state.action_type == "WITH":
+        if data['wallet'] < 100:
+            st.error("❌ Insufficient Balance. You need at least ₱100.00 to withdraw.")
+            if st.button("Close"): st.session_state.action_type = None; st.rerun()
+        else:
+            with st.form("w"):
+                # We set max_value to the wallet balance, but ensure min is possible
+                amt_w = st.number_input("Amount", min_value=100.0, max_value=float(data['wallet']))
+                bn = st.text_input("Bank / Wallet Name")
+                an = st.text_input("Account Name")
+                anum = st.text_input("Account Number")
+                if st.form_submit_button("Request Withdrawal"):
+                    data['wallet'] -= amt_w
+                    data.setdefault('pending_actions', []).append({
+                        "type": "WITHDRAW", "amount": amt_w, "bank": bn, 
+                        "acc_name": an, "acc_num": anum, "date": str(datetime.now())
+                    })
+                    update_user(st.session_state.user, data)
+                    st.success("Requested!")
+                    st.session_state.action_type = None
+                    st.rerun()
 
+    # --- REINVEST BLOCK FIX ---
     if st.session_state.action_type == "REIN":
-        with st.form("r"):
-            amt_r = st.number_input("Amount", min_value=100.0, max_value=data['wallet'])
-            if st.form_submit_button("Reinvest Now"):
-                data['wallet'] -= amt_r
-                data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
-                update_user(st.session_state.user, data); st.success("Started!"); st.session_state.action_type = None; st.rerun()
-
-    # Active Cycles
-    st.markdown("<br>### ⌛ ACTIVE CYCLES", unsafe_allow_html=True)
-    if not data.get('inv'): st.info("No active cycles.")
-    for inv in data.get('inv', []):
-        start = datetime.fromisoformat(inv['start_time'])
-        roi = (inv['amount'] * 0.20) * min((datetime.now() - start).total_seconds() / (7*24*3600), 1.0)
-        rem = (start + timedelta(days=7)) - datetime.now()
-        st.info(f"Capital: ₱{inv['amount']:,} | ROI: ₱{roi:,.4f} | Time: {rem.days}D {rem.seconds//3600}H")
-    
-    time.sleep(1); st.rerun()
-
-# --- ROUTE C: LOGIN PAGE ---
-elif st.session_state.page == "login":
-    st.markdown("<h1 style='text-align:center; color:#00eeff;'>ACCESS PORTAL</h1>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    if c1.button("LOG IN", use_container_width=True): st.session_state.sub_page = "login_form"
-    if c2.button("REGISTER", use_container_width=True): st.session_state.sub_page = "reg_form"
-    
-    if st.session_state.sub_page == "login_form":
-        u = st.text_input("USERNAME").upper().strip()
-        p = st.text_input("PIN", type="password")
-        if st.button("ENTER"):
-            reg = load_registry()
-            db_k = u.replace(" ", "_")
-            ud = reg.get(db_k) or reg.get(u)
-            if ud and str(ud['pin']) == str(p):
-                st.session_state.user = db_k if db_k in reg else u
-                st.rerun()
-            else: st.error("Invalid")
-    elif st.session_state.sub_page == "reg_form":
-        f, l = st.text_input("FIRST").upper(), st.text_input("LAST").upper()
-        p = st.text_input("PIN", type="password", max_chars=6)
-        if st.button("SUBMIT") and f and l and len(p)==6:
-            update_user(f"{f}_{l}", {"pin": p, "wallet": 0.0, "inv": [], "full_name": f"{f} {l}", "pending_actions": []})
-            st.success("Done!"); st.session_state.sub_page = "login_form"; st.rerun()
-
-# --- ROUTE D: AD FRONT PAGE ---
-else:
-    st.markdown('<h1 style="text-align:center; font-size:45px; font-weight:900; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; margin-bottom:20px;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
-    cl, cb1, cb2, cr = st.columns([0.35, 0.1, 0.2, 0.35])
-    with cb1:
-        if st.button("⛔"): st.session_state.admin_mode = not st.session_state.admin_mode
-    with cb2:
-        if st.button("🚀 JOIN NOW!"): st.session_state.page = "login"; st.rerun()
-
-    st.markdown("""<div class="ad-panel"><p style="color:#00eeff; font-weight:bold;">How We Generate Your Profit:</p>
-    <p style="color:#8c8f99;">Your capital is diversified and cycled via AI-managed scalping. Small 0.05% profits from thousands of trades combine 
-    for your 20% profit over 7 days.</p></div>""", unsafe_allow_html=True)
-
-    if st.session_state.admin_mode:
-        if st.text_input("Code", type="password") == "0102030405":
-            st.session_state.is_boss = True; st.session_state.admin_mode = False; st.rerun()
-                
+        if data['wallet'] < 100:
+            st.error("❌ Insufficient Balance. You need at least ₱100.00 to reinvest.")
+            if st.button("Close"): st.session_state.action_type = None; st.rerun()
+        else:
+            with st.form("r"):
+                amt_r = st.number_input("Amount", min_value=100.0, max_value=float(data['wallet']))
+                if st.form_submit_button("Reinvest Now"):
+                    data['wallet'] -= amt_r
+                    data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
+                    update_user(st.session_state.user, data)
+                    st.success("Cycle Started!")
+                    st.session_state.action_type = None
+                    st.rerun()
