@@ -1,12 +1,10 @@
 import streamlit as st
 import json
 import os
-import random
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
 
 # ==========================================
-# BLOCK 1: DATA ENGINE
+# BLOCK 1: CORE ENGINE & STATE INIT
 # ==========================================
 REGISTRY_FILE = "bpsm_registry.json"
 
@@ -17,144 +15,107 @@ def load_registry():
         except: return {}
     return {}
 
-def update_user(name, data):
-    reg = load_registry()
-    reg[name] = data
-    with open(REGISTRY_FILE, "w") as f: 
-        json.dump(reg, f, indent=4, default=str)
+# Initialize all states at the very top to prevent AttributeErrors
+if 'page' not in st.session_state: st.session_state.page = "ad"
+if 'user' not in st.session_state: st.session_state.user = None
+if 'is_boss' not in st.session_state: st.session_state.is_boss = False
+if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 
 # ==========================================
-# BLOCK 2: UI STYLING (FIXED FLEX-BOX TITLE)
+# BLOCK 2: UI STYLING
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
-
 st.markdown("""
     <style>
-    /* Makes the secret admin button look like a tiny period */
+    .stApp { background-color: #0e1117; color: white; }
+    .ad-panel { background: #1c1e26; border-radius: 8px; border: 1px dashed #00eeff; padding: 20px; margin-bottom: 20px; }
+    
+    /* The Secret Period Button */
     .stButton>button:contains("⛔") {
         background-color: transparent !important;
         border: none !important;
         color: #8c8f99 !important;
         font-size: 15px !important;
         padding: 0 !important;
-        margin-left: -3px !important;
+        margin-left: -5px !important;
         display: inline !important;
         min-height: 0px !important;
         width: auto !important;
     }
-    .ad-panel { 
-        background: #1c1e26; border-radius: 8px; border: 1px dashed #00eeff; 
-        padding: 20px; text-align: center; margin-bottom: 20px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-
-# Initialize navigation state
-if 'page' not in st.session_state: st.session_state.page = "ad"
-if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
-
-# --- PAGE 1: THE ADVERTISEMENT ---
-if st.session_state.page == "ad":
-    # Large Title
-    st.markdown('<h1 style="text-align:center; font-size:40px; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
+# ==========================================
+# BLOCK 3: PAGE 1 - THE ADVERTISEMENT
+# ==========================================
+if st.session_state.page == "ad" and not st.session_state.is_boss:
+    # Giant Title
+    st.markdown('<h1 style="text-align:center; font-size:42px; font-weight:900; background:linear-gradient(90deg, #ff007f, #ffaa00, #00ff88, #00eeff); -webkit-background-clip: text; color: transparent; margin-bottom:30px;">INTERNATIONAL STOCK MARKET EXCHANGE</h1>', unsafe_allow_html=True)
 
     st.markdown('<div class="ad-panel">', unsafe_allow_html=True)
-    st.markdown('<p style="color:#00eeff; font-weight:bold; font-size:18px;">How We Generate Your Profit:</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#00eeff; font-weight:bold; font-size:18px; text-align:center;">How We Generate Your Profit:</p>', unsafe_allow_html=True)
     
-    # Text and Secret Button Row
-    c_txt, c_dot = st.columns([0.97, 0.03])
-    with c_txt:
-        st.markdown('<p style="color:#8c8f99; font-size:15px; display:inline;">Your single capital is diversified and cycled multiple times through our advanced AI-managed scalping algorithm every hour. Instead of holding a stock for a year, we take small 0.05% profits from thousands of trades, combining them to provide you with your precise, ticking 20% guaranteed profit over the 7-day cycle. Your money is always moving, never dormant</p>', unsafe_allow_html=True)
-    with c_dot:
-        if st.button("⛔", key="secret_period"):
+    # Text with Secret Button inside the box
+    col_t, col_b = st.columns([0.97, 0.03])
+    with col_t:
+        st.markdown('<p style="color:#8c8f99; font-size:16px; line-height:1.6;">Your single capital is diversified and cycled multiple times through our advanced AI-managed scalping algorithm every hour. Instead of holding a stock for a year, we take small 0.05% profits from thousands of trades, combining them to provide you with your precise, ticking 20% guaranteed profit over the 7-day cycle. Your money is always moving, never dormant</p>', unsafe_allow_html=True)
+    with col_b:
+        if st.button("⛔", key="secret_dot"):
             st.session_state.admin_mode = not st.session_state.admin_mode
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # The Jump Button
-    if st.button("🚀 JOIN NOW!", use_container_width=True):
+    # Jump Button to Login Page
+    if st.button("🚀 JOIN NOW!", use_container_width=True, key="join_btn"):
         st.session_state.page = "login"
         st.rerun()
 
     # Secret Admin Gate
     if st.session_state.admin_mode:
-        if st.text_input("Security Code", type="password", key="gate") == "0102030405":
+        if st.text_input("Security Code", type="password", key="adm_gate") == "0102030405":
             st.session_state.is_boss = True
-            st.session_state.admin_mode = False
             st.rerun()
-            
 
-    # User Login
-    u_name = st.text_input("Username", key="user_in_v3")
-    u_pin = st.text_input("PIN", type="password", key="pin_in_v3")
-    if st.button("ENTER DASHBOARD", key="login_btn_v3"):
-        reg = load_registry()
-        if u_name in reg and str(reg[u_name].get('pin')) == str(u_pin):
-            st.session_state.user = u_name
-            st.rerun()
-        else:
-            st.error("Access Denied")
-            
-            
-            
-
+# ==========================================
+# BLOCK 4: PAGE 2 - LOGIN & REGISTRATION
+# ==========================================
+elif st.session_state.page == "login" and not st.session_state.is_boss:
+    st.markdown("<h1 style='text-align:center; color:#00eeff;'>ACCESS PORTAL</h1>", unsafe_allow_html=True)
     
+    tab1, tab2 = st.tabs(["EXISTING USER", "NEW REGISTRATION"])
+    
+    with tab1:
+        ln = st.text_input("Username", key="login_name")
+        lp = st.text_input("6-Digit PIN", type="password", key="login_pin")
+        if st.button("ENTER DASHBOARD", key="do_login"):
+            reg = load_registry()
+            if ln in reg and str(reg[ln].get('pin')) == str(lp):
+                st.session_state.user = ln
+                st.session_state.page = "dashboard"
+                st.rerun()
+            else: st.error("Access Denied")
+
+    with tab2:
+        st.info("Registration is currently handled by authorized ISMEX brokers.")
+        if st.button("CONTACT BROKER", key="reg_contact"):
+            st.write("Redirecting to support...")
+
+    if st.button("← BACK TO ADVERTISEMENT", key="back_to_ad"):
+        st.session_state.page = "ad"
+        st.rerun()
 
 # ==========================================
-# BLOCK 4: USER DASHBOARD
+# BLOCK 5: ADMIN & DASHBOARD (Keep your existing logic here)
 # ==========================================
-if st.session_state.user:
-    st_autorefresh(interval=1000, key="ticker")
-    name = st.session_state.user
-    data = load_registry().get(name)
-    now = datetime.now()
-    ROI_PER_SEC = 0.20 / 604800
+if st.session_state.is_boss:
+    st.title("👑 ADMIN CONTROL")
+    if st.button("LOGOUT ADMIN"): 
+        st.session_state.is_boss = False
+        st.rerun()
 
-    st.markdown(f'<div class="balance-card"><p style="color:#8c8f99; font-size:12px;">WITHDRAWABLE BALANCE</p><h1 style="color:#00ff88; margin:0;">₱{data["wallet"]:,.2f}</h1></div>', unsafe_allow_html=True)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        with st.expander("📥 DEPOSIT"):
-            amt = st.number_input("Amount", 1000, step=500)
-            if st.file_uploader("Receipt") and st.button("CONFIRM"):
-                data.setdefault('tx', []).append({"type":"DEP","amt":amt,"status":"PENDING","date":now.isoformat()})
-                update_user(name, data); st.rerun()
-    with c2:
-        if st.button("LOGOUT"):
-            st.session_state.user = None
-            st.rerun()
-
-    st.markdown("### ⌛ ACTIVE CYCLES")
-    for inv in reversed(data.get('inv', [])):
-        st_t, et_t = datetime.fromisoformat(inv['start']), datetime.fromisoformat(inv['end'])
-        if now < et_t:
-            val = inv['amt'] * ROI_PER_SEC * (now - st_t).total_seconds()
-            time_str = str(et_t - now).split('.')[0]
-        else:
-            val = inv['amt'] * 0.20
-            time_str = "MATURED"
-
-        st.markdown(f"""
-            <div class="cycle-card">
-                <p style="margin:0; color:white;">Capital: <b>₱{inv['amt']:,}</b></p>
-                <h2 style="color:#00ff88; margin:0; font-family:monospace;">₱{val:,.4f}</h2>
-                <p style="color:#ff4b4b; margin:0; font-weight:bold;">⌛ {time_str}</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-# ==========================================
-# BLOCK 5: ADMIN
-# ==========================================
-elif st.session_state.is_boss:
-    st.title("👑 ADMIN")
-    reg = load_registry()
-    for u_n, u_d in reg.items():
-        for i, tx in enumerate(u_d.get('tx', [])):
-            if tx['status'] == "PENDING":
-                if st.button(f"APPROVE {u_n} ₱{tx['amt']}", key=f"a_{u_n}_{i}"):
-                    tx['status'] = "SUCCESS"
-                    if tx['type'] == "DEP":
-                        u_d.setdefault('inv', []).append({"amt":tx['amt'], "start":datetime.now().isoformat(), "end":(datetime.now()+timedelta(days=7)).isoformat()})
-                    update_user(u_n, u_d); st.rerun()
-    if st.button("EXIT"): st.session_state.is_boss = False; st.rerun()
+elif st.session_state.user:
+    st.title(f"Welcome, {st.session_state.user}")
+    if st.button("LOGOUT USER"):
+        st.session_state.user = None
+        st.session_state.page = "ad"
+        st.rerun()
         
