@@ -139,24 +139,56 @@ elif st.session_state.user:
 elif st.session_state.page == "login":
     st.title("ACCESS PORTAL")
     if st.button("Back"): st.session_state.page = "ad"; st.rerun()
-    u = st.text_input("USERNAME").upper().strip()
-    p = st.text_input("PIN", type="password")
     
-    if st.button("LOGIN"):
-        reg = load_registry()
-        if u in reg and str(reg[u]['pin']) == str(p):
-            st.session_state.user = u; st.rerun()
-        else:
-            st.error("Invalid Username or PIN")
+    tab_login, tab_reg = st.tabs(["LOGIN", "REGISTER NEW ACCOUNT"])
+    
+    with tab_login:
+        st.info("Please use your FULL NAME (FIRST MIDDLE LAST) to login.")
+        u = st.text_input("FULL NAME").upper().strip()
+        p = st.text_input("PIN", type="password", key="login_pin")
+        if st.button("LOGIN"):
+            reg = load_registry()
+            if u in reg and str(reg[u]['pin']) == str(p):
+                st.session_state.user = u; st.rerun()
+            else:
+                st.error("Invalid Full Name or PIN")
+                
+    with tab_reg:
+        full_name = st.text_input("NAME MIDDLE NAME AND LASTNAME").upper().strip()
+        
+        st.info("PIN must be exactly 6 digits.")
+        p1 = st.text_input("CREATE 6-DIGIT PIN", type="password", max_chars=6)
+        p2 = st.text_input("CONFIRM 6-DIGIT PIN", type="password", max_chars=6)
+        
+        ref_name = st.text_input("REFERRAL NAME (ACTIVE INVESTOR)").upper().strip()
+        
+        if st.button("REGISTER"):
+            reg = load_registry()
             
-    if st.button("REGISTER NEW ACCOUNT"):
-        reg = load_registry()
-        if u in reg:
-            st.warning(" Account exist ")
-        else:
-            reg[u] = {"pin": p, "wallet": 0.0, "inv": [], "full_name": u, "pending_actions": []}
-            update_user(u, reg[u]); st.success("Created!")
-
+            # Validation Checks
+            if not full_name:
+                st.error("Please enter your FULL NAME in CAPS.")
+            elif full_name in reg:
+                st.warning("Account already exists with this Name!")
+            elif len(p1) != 6 or not p1.isdigit():
+                st.error("PIN must be exactly 6 numbers!")
+            elif p1 != p2:
+                st.error("PINs do not match!")
+            elif ref_name not in reg:
+                st.error("Referral name not found or not an active investor!")
+            else:
+                # Save credentials using Full Name as the Key
+                reg[full_name] = {
+                    "pin": p1, 
+                    "wallet": 0.0, 
+                    "inv": [], 
+                    "full_name": full_name, 
+                    "referral": ref_name,
+                    "pending_actions": []
+                }
+                update_user(full_name, reg[full_name])
+                st.success(f"Account Created for {full_name}! Use this name to Login.")
+                
 # --- SIMPLE ADVERTISEMENT FRONT PAGE ---
 else:
     st.markdown(
