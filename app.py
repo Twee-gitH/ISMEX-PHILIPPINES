@@ -112,7 +112,7 @@ elif st.session_state.user:
 
     if st.session_state.action_type == "DEP":
         with st.form("d"):
-            st.info("📢 SEND DEPOSIT TO:\n\n**GCASH:** 09xxxxxxxxx\n**NAME:** T**S** G.") # ADDED AS ASKED
+            st.info("📢 SEND DEPOSIT TO:\n\n**GCASH:** 09xxxxxxxxx\n**NAME:** T**S** G.")
             amt_d = st.number_input("Deposit Amount", min_value=100.0)
             st.file_uploader("Browse Receipt", type=['jpg','png','jpeg'])
             if st.form_submit_button("Submit"):
@@ -158,20 +158,25 @@ elif st.session_state.user:
             end_dt = start_dt + timedelta(days=7)
             grace_end = end_dt + timedelta(hours=1)
             
+            # AUTOMATIC RECYCLE: Past 1-hour grace period
             if now > grace_end:
+                a['amount'] = a['amount'] * 1.20 # Auto-add ROI
                 a['start_time'] = now.isoformat()
                 needs_update = True
-                st.toast(f"Capital ₱{a['amount']:,} recycled.")
+                st.toast(f"Capital ₱{a['amount']:,} recycled with ROI.")
                 start_dt, end_dt, grace_end = now, now + timedelta(days=7), now + timedelta(days=7, hours=1)
 
             st.markdown(f"""
                 <div class='hist-card' style='border-left-color:#00ff88;'>
                     <b>CAPITAL AMOUNT</b>: ₱{a['amount']:,.2f}<br>
-                    <small><b>Start:</b> {start_dt.strftime('%Y-%m-%d %H:%M')} | <b>End:</b> {end_dt.strftime('%Y-%m-%d %H:%M')}</small>
+                    <small><b>Start:</b> {start_dt.strftime('%Y-%m-%d %H:%M')}</small><br>
+                    <small><b>Maturity:</b> {end_dt.strftime('%Y-%m-%d %H:%M')} <b>until</b> {grace_end.strftime('%Y-%m-%d %H:%M')}</small>
                 </div>
             """, unsafe_allow_html=True)
 
+            # PULL OUT BUTTON: Visible only during the 1-hour window
             if end_dt <= now <= grace_end:
+                st.success("Capital is available to pull out!")
                 if st.button(f"📥 PULL OUT ₱{a['amount']*1.20:,.2f}", key=f"pull_{idx}"):
                     data['wallet'] += (a['amount'] * 1.20)
                     needs_update = True
@@ -224,4 +229,4 @@ else:
     if st.session_state.admin_mode:
         if st.text_input("Code", type="password") == "0102030405":
             st.session_state.is_boss = True; st.rerun()
-        
+                
