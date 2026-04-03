@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import json
 import os
 from datetime import datetime, timedelta
@@ -27,7 +27,7 @@ if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 if 'action_type' not in st.session_state: st.session_state.action_type = None
 
 # ==========================================
-# BLOCK 2: UI STYLES & BRANDING REMOVAL
+# BLOCK 2: UI STYLES & AGGRESSIVE BRANDING REMOVAL
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
 
@@ -36,19 +36,22 @@ if "ref" in st.query_params:
     st.session_state.url_ref = st.query_params["ref"].replace("+", " ").upper().strip()
 current_ref = st.session_state.get("url_ref", "")
 
-# CSS TO HIDE STREAMLIT BRANDING AND FIX BUTTONS
+# AGGRESSIVE CSS TO KILL ALL BRANDING & FIX MESSENGER BUTTONS
 st.markdown("""
     <style>
-    /* HIDE STREAMLIT FOOTER, HAMBURGER MENU, AND PROFILE FACE */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display:none;}
+    /* 1. HIDE EVERYTHING: HAMBURGER, FOOTER, GITHUB ICON, PROFILE FACE */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    .stDeployButton {display:none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    [data-testid="stDecoration"] {display:none !important;}
+    [data-testid="stStatusWidget"] {display:none !important;}
     
-    /* Global Background */
-    .stApp { background-color: #0e1117; color: white; }
+    /* 2. GLOBAL THEME FORCING */
+    .stApp { background-color: #0e1117 !important; color: white !important; }
     
-    /* FIX FOR WHITE BUTTONS IN MESSENGER/MOBILE */
+    /* 3. FIX FOR WHITE BUTTONS IN MESSENGER/MOBILE */
     div.stButton > button {
         background-color: #1c1e26 !important;
         color: #ffffff !important;
@@ -56,21 +59,17 @@ st.markdown("""
         border-radius: 8px !important;
         font-weight: bold !important;
         text-transform: uppercase !important;
+        width: 100% !important;
     }
 
-    /* Dashboard Elements */
+    /* 4. DASHBOARD STYLING */
     .hist-card { background: #1c1e26; padding: 15px; border-radius: 5px; margin-bottom: 2px; border-left: 5px solid #00ff88; }
     .roi-text { color: #00ff88; font-weight: bold; float: right; font-size: 18px; }
     .live-profit { color: #8c8f99; font-size: 14px; margin-top: 5px; }
+    .balance-box { background: #1c1e26; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #333; margin-bottom: 20px; }
     
-    /* Balance Display */
-    .balance-box {
-        background: #1c1e26; padding: 20px; border-radius: 10px; 
-        text-align: center; border: 1px solid #333; margin-bottom: 20px;
-    }
-    
-    /* Hidden Admin Toggle */
-    .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #111 !important; }
+    /* 5. HIDDEN ADMIN TOGGLE */
+    .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #0e1117 !important; width: 30px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -154,7 +153,7 @@ elif st.session_state.user:
                 data.setdefault('pending_actions', []).append({"type": "DEPOSIT", "amount": amt_d, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
                 update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
 
-    # --- RUNNING CAPITALS (WITH PROGRESS BAR & LIVE PROFIT) ---
+    # --- RUNNING CAPITALS ---
     st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active: st.info("No running capitals.")
@@ -186,7 +185,7 @@ elif st.session_state.user:
                 active.pop(idx)
                 update_user(st.session_state.user, data); st.rerun()
 
-    # --- REFERRAL COMMISSIONS ---
+    # --- REFERRALS ---
     st.divider()
     st.markdown("### 🤝 REFERRAL COMMISSIONS (20%)")
     comms = data.get('commissions', [])
@@ -230,7 +229,7 @@ else:
     with col_a:
         if st.button("⛔"): st.session_state.admin_mode = not st.session_state.admin_mode
     with col_b:
-        if st.button("🚀 PRESS HERE TO REGISTER / LOGIN", use_container_width=True): 
+        if st.button("🚀 PRESS HERE TO REGISTER / LOGIN"): 
             st.session_state.page = "login"
             st.rerun()
     
