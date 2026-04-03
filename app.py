@@ -31,50 +31,45 @@ if 'action_type' not in st.session_state: st.session_state.action_type = None
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
 
-# Persistent Referral Capture
+# Capture Referral
 if "ref" in st.query_params:
     st.session_state.url_ref = st.query_params["ref"].replace("+", " ").upper().strip()
 current_ref = st.session_state.get("url_ref", "")
 
 st.markdown("""
     <style>
-    /* Global App Background */
+    /* Global Background */
     .stApp { background-color: #0e1117; color: white; }
     
-    /* CRITICAL FIX FOR WHITE BUTTONS IN MESSENGER/MOBILE */
+    /* FIX FOR WHITE BUTTONS IN MESSENGER/MOBILE */
     div.stButton > button {
         background-color: #1c1e26 !important;
         color: #ffffff !important;
-        border: 1px solid #333 !important;
+        border: 2px solid #333 !important;
         border-radius: 8px !important;
-        height: 3em !important;
-        width: 100% !important;
-    }
-    
-    /* Ensure text is visible even if button is hovered or clicked */
-    div.stButton > button:hover, div.stButton > button:active, div.stButton > button:focus {
-        color: #ffffff !important;
-        background-color: #262a33 !important;
-        border: 1px solid #00ff88 !important;
+        font-weight: bold !important;
+        text-transform: uppercase !important;
     }
 
-    /* Cards and ROI styling */
-    .hist-card { background: #1c1e26; padding: 15px; border-radius: 5px; margin-bottom: 2px; border-left: 5px solid #00ff88; position: relative; }
+    /* Target the specific Home Page button for extra visibility */
+    div.stButton > button[kind="primary"] {
+        background-color: #1c1e26 !important;
+        color: white !important;
+    }
+
+    /* Dashboard Elements */
+    .hist-card { background: #1c1e26; padding: 15px; border-radius: 5px; margin-bottom: 2px; border-left: 5px solid #00ff88; }
     .roi-text { color: #00ff88; font-weight: bold; float: right; font-size: 18px; }
     .live-profit { color: #8c8f99; font-size: 14px; margin-top: 5px; }
     
-    /* Withdraw Balance Container */
-    .balance-container {
-        background: #1c1e26; 
-        padding: 20px; 
-        border-radius: 10px; 
-        text-align: center; 
-        border: 1px solid #333; 
-        margin-bottom: 20px;
+    /* Balance Display */
+    .balance-box {
+        background: #1c1e26; padding: 20px; border-radius: 10px; 
+        text-align: center; border: 1px solid #333; margin-bottom: 20px;
     }
-
-    /* Hide admin toggle button visually */
-    .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #111 !important; width: 40px !important; }
+    
+    /* Hidden Admin Toggle */
+    .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #111 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -140,13 +135,13 @@ elif st.session_state.user:
         st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
 
     st.markdown(f"""
-        <div class="balance-container">
+        <div class="balance-box">
             <p style="color:#8c8f99; font-size:14px; margin-bottom:5px;">WITHDRAWABLE BALANCE</p>
             <h1 style="color:#00ff88; font-size:50px; margin:0;">₱{data['wallet']:,.2f}</h1>
         </div>
     """, unsafe_allow_html=True)
 
-    # Action Buttons
+    # Dashboard Actions
     if st.button("📥 DEPOSIT"): st.session_state.action_type = "DEP"
     if st.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
     if st.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
@@ -159,7 +154,7 @@ elif st.session_state.user:
                 data.setdefault('pending_actions', []).append({"type": "DEPOSIT", "amount": amt_d, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
                 update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
 
-    # --- RUNNING CAPITALS (MATCHING VIDEO) ---
+    # --- RUNNING CAPITALS ---
     st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active: st.info("No running capitals.")
@@ -168,8 +163,6 @@ elif st.session_state.user:
         for idx, a in reversed(list(enumerate(active))):
             start_dt = datetime.fromisoformat(a['start_time'])
             end_dt = start_dt + timedelta(days=7)
-            
-            # Progress Logic
             total_sec = (end_dt - start_dt).total_seconds()
             elapsed_sec = (now - start_dt).total_seconds()
             progress = min(1.0, elapsed_sec / total_sec)
@@ -181,7 +174,7 @@ elif st.session_state.user:
             st.markdown(f"""
                 <div class='hist-card'>
                     <span class='roi-text'>ROI: ₱{total_roi:,.2f}</span>
-                    <b style='font-size:16px;'>CAPITAL: ₱{a['amount']:,.2f}</b><br>
+                    <b>CAPITAL: ₱{a['amount']:,.2f}</b><br>
                     <div class='live-profit'>LIVE PROFIT: ₱{live_profit:,.2f}</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -193,25 +186,15 @@ elif st.session_state.user:
                 active.pop(idx)
                 update_user(st.session_state.user, data); st.rerun()
 
-    # --- REFERRAL SECTION (MATCHING SCREENSHOT) ---
+    # --- REFERRALS ---
     st.divider()
     st.markdown("### 🤝 REFERRAL COMMISSIONS (20%)")
     comms = data.get('commissions', [])
-    if not comms:
-        st.info("No referral commissions yet.")
-    else:
-        table_rows = []
-        for c in comms:
-            status_icon = "✅ Received" if c.get('status') == "CLAIMED" else "⏳ Pending"
-            table_rows.append({
-                "Invite Name": c.get('referee'),
-                "1st Deposit": f"₱{c.get('deposit', 0):,.2f}",
-                "Bonus": f"₱{c.get('amt', 0):,.2f}",
-                "Status": status_icon
-            })
+    if comms:
+        table_rows = [{"Invite Name": c.get('referee'), "1st Deposit": f"₱{c.get('deposit', 0):,.2f}", "Bonus": f"₱{c.get('amt', 0):,.2f}", "Status": ("✅ Received" if c.get('status') == "CLAIMED" else "⏳ Pending")} for c in comms]
         st.table(table_rows)
 
-    # --- TRANSACTION HISTORY ---
+    # --- HISTORY ---
     st.markdown("### 📜 TRANSACTION HISTORY")
     for h in reversed(data.get('history', [])):
         st.write(f"✅ **{h.get('status', 'CONFIRMED')}**: ₱{h['amount']:,.2f} | {h['date']}")
@@ -241,14 +224,14 @@ else:
     # --- HOME PAGE ---
     st.markdown("<h1 style='color: #007BFF;'>INTERNATIONAL STOCK MARKET EXCHANGE! 📊📈</h1>", unsafe_allow_html=True)
     st.write("Transform your initial investment into a powerhouse of growth through our precision-engineered market cycles.")
-    
     st.info("### 🚀 Grow your capital by 20% every 7 days!")
     
     col_a, col_b = st.columns([0.1, 0.9])
     with col_a:
         if st.button("⛔"): st.session_state.admin_mode = not st.session_state.admin_mode
     with col_b:
-        if st.button("🚀 PRESS HERE TO REGISTER / LOGIN"): 
+        # THE PRIMARY BUTTON - Forced visible text color
+        if st.button("🚀 PRESS HERE TO REGISTER / LOGIN", use_container_width=True): 
             st.session_state.page = "login"
             st.rerun()
     
@@ -256,4 +239,3 @@ else:
         if st.text_input("code", type="password") == "0102030405": 
             st.session_state.is_boss = True
             st.rerun()
-                        
