@@ -66,7 +66,6 @@ if st.session_state.is_boss:
     for username, u_data in reg.items():
         pending_list = u_data.get('pending_actions', [])
         for idx, action in enumerate(list(pending_list)):
-            # Admin can now see Bank Details for Withdrawals
             label = f"{action['type']} - {username} - ₱{action.get('amount', 0):,.2f}"
             with st.expander(label):
                 if action['type'] == "WITHDRAW":
@@ -98,7 +97,7 @@ if st.session_state.is_boss:
                 
                 if cr.button("❌ REJECT", key=f"rej_{username}_{idx}"):
                     if action['type'] == "WITHDRAW":
-                        u_data['wallet'] = u_data.get('wallet', 0.0) + action['amount'] # Refund if rejected
+                        u_data['wallet'] = u_data.get('wallet', 0.0) + action['amount'] 
                     u_data['pending_actions'].pop(idx); update_user(username, u_data); st.rerun()
 
 # ==========================================
@@ -120,6 +119,8 @@ elif st.session_state.user:
     if c2.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
     if c3.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
 
+    current_wallet = float(data.get('wallet', 0.0))
+
     # DEPOSIT FORM
     if st.session_state.action_type == "DEP":
         with st.form("d"):
@@ -134,94 +135,35 @@ elif st.session_state.user:
                     update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
                 else: st.error("Please upload your receipt.")
 
-    
-        # REINVEST FORM
+    # REINVEST FORM
     if st.session_state.action_type == "REIN":
         with st.form("r"):
             st.markdown("### ♻️ REINVEST CAPITAL")
-            current_wallet = float(data.get('wallet', 0.0))
-            
-            # Allow reinvesting any amount up to the current balance
-            amt_r = st.number_input(
-                "Amount to Reinvest", 
-                min_value=0.0, 
-                max_value=max(0.0, current_wallet),
-                step=100.0
-            )
-            
-            submit_r = st.form_submit_button("CONFIRM REINVESTMENT")
-            
-            if submit_r:
-                if amt_r <= 0:
-                    st.error("Please enter an amount greater than 0.")
-                elif amt_r > current_wallet:
-                    st.error("Insufficient balance.")
-                else:
-                    # 1. Deduct from wallet
+            amt_r = st.number_input("Amount to Reinvest", min_value=0.0, max_value=max(0.0, current_wallet), step=100.0)
+            if st.form_submit_button("CONFIRM REINVESTMENT"):
+                if amt_r > 0 and amt_r <= current_wallet:
                     data['wallet'] -= amt_r
-                    
-                    # 2. Create new Running Capital (starts immediately)
-                    data.setdefault('inv', []).append({
-                        "amount": amt_r, 
-                        "start_time": datetime.now().isoformat()
-                    })
-                    
-                    # 3. Log to Transaction History
-                    data.setdefault('history', []).append({
-                        "type": "REINVEST", 
-                        "amount": amt_r, 
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        "status": "CONFIRMED"
-                    })
-                    
-                    update_user(st.session_state.user, data)
-                    st.session_state.action_type = None
-                    st.success(f"Successfully reinvested ₱{amt_r:,.2f}!")
-                    st.rerun()
-                    "WITH":
+                    data.setdefault('inv', []).append({"amount": amt_r, "start_time": datetime.now().isoformat()})
+                    data.setdefault('history', []).append({"type": "REINVEST", "amount": amt_r, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "status": "CONFIRMED"})
+                    update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
+                else: st.error("Invalid amount or insufficient balance.")
+
+    # WITHDRAW FORM
+    if st.session_state.action_type == "WITH":
         with st.form("w"):
             st.markdown("### 💸 WITHDRAWAL REQUEST")
-            
-            # Fix: Ensure max_value is never smaller than min_value to prevent crashing
-            current_wallet = float(data.get('wallet', 0.0))
-            amt_w = st.number_input(
-                "Withdrawal Amount", 
-                min_value=0.0, 
-                max_value=max(0.0, current_wallet),
-                step=100.0
-            )
-            
-            bank_n = st.text_input("Bank / Wallet Name (e.g. GCASH, BPI)")
+            amt_w = st.number_input("Withdrawal Amount", min_value=0.0, max_value=max(0.0, current_wallet), step=100.0)
+            bank_n = st.text_input("Bank / Wallet Name")
             acct_num = st.text_input("Account Number")
             acct_name = st.text_input("Account Name")
-            
-            # The missing submit button
-            submit_w = st.form_submit_button("SUBMIT WITHDRAWAL")
-            
-            if submit_w:
-                if current_wallet <= 0:
-                    st.error("Your balance is ₱0.00. You cannot withdraw at this time.")
-                elif amt_w <= 0:
-                    st.error("Please enter an amount greater than 0.")
-                elif bank_n and acct_num and acct_name:
+            if st.form_submit_button("SUBMIT WITHDRAWAL"):
+                if amt_w > 0 and bank_n and acct_num and acct_name:
                     data['wallet'] -= amt_w
-                    data.setdefault('pending_actions', []).append({
-                        "type": "WITHDRAW", "amount": amt_w, "bank": bank_n, 
-                        "acct_num": acct_num, "acct_name": acct_name, 
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
-                    data.setdefault('history', []).append({
-                        "type": "WITHDRAW", "amount": amt_w, 
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        "status": "PENDING"
-                    })
-                    update_user(st.session_state.user, data)
-                    st.session_state.action_type = None
-                    st.success("Withdrawal request sent!")
-                    st.rerun()
-                else:
-                    st.error("Please fill in all banking details.")
-                    
+                    data.setdefault('pending_actions', []).append({"type": "WITHDRAW", "amount": amt_w, "bank": bank_n, "acct_num": acct_num, "acct_name": acct_name, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+                    data.setdefault('history', []).append({"type": "WITHDRAW", "amount": amt_w, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "status": "PENDING"})
+                    update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
+                else: st.error("Check balance and fill all details.")
+
     st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active: st.info("No running capitals.")
@@ -229,7 +171,6 @@ elif st.session_state.user:
         now = datetime.now()
         for idx, a in reversed(list(enumerate(active))):
             start_dt = datetime.fromisoformat(a['start_time'])
-            end_dt = start_dt + timedelta(days=7)
             progress = min(1.0, (now - start_dt).total_seconds() / (7 * 86400))
             total_roi = a['amount'] * 1.20
             live_profit = (a['amount'] * 0.20) * progress
@@ -241,10 +182,8 @@ elif st.session_state.user:
                 active.pop(idx); update_user(st.session_state.user, data); st.rerun()
 
     st.divider()
-
     st.markdown("### 🤝 REFERRAL PROGRAM")
-    my_link = f"https://twee-gith.github.io/ISMEX-PHILIPPINES/?ref={user_display.replace(' ', '+')}"
-    st.code(my_link, language="text")
+    st.code(f"https://twee-gith.github.io/ISMEX-PHILIPPINES/?ref={user_display.replace(' ', '+')}", language="text")
 
     comms = data.get('commissions', [])
     if comms:
@@ -253,14 +192,13 @@ elif st.session_state.user:
             if c['status'] == "UNCLAIMED" and st.button(f"CLAIM ₱{c['amt']}", key=f"c_{idx}"):
                 data.setdefault('pending_actions', []).append({"type": "COMMISSION_REQUEST", "amount": c['amt'], "comm_index": idx})
                 update_user(st.session_state.user, data); st.rerun()
-    else: st.info("No referral commissions yet.")
 
     st.markdown("### 📜 TRANSACTION HISTORY")
     for h in reversed(data.get('history', [])):
         st.write(f"✅ **{h.get('status', 'CONFIRMED')}**: {h['type']} - ₱{h['amount']:,.2f} | {h['date']}")
 
 # ==========================================
-# BLOCK 5: LOGIN & LANDING (REST OMITTED FOR BREVITY, PRESERVED IN CODE)
+# BLOCK 5: LOGIN & LANDING
 # ==========================================
 elif st.session_state.page == "login":
     st.title("ACCESS PORTAL")
@@ -284,11 +222,10 @@ elif st.session_state.page == "login":
                 update_user(fn, reg[fn]); st.success("Registered! Login now.")
 else:
     st.markdown("<h1 style='color: #007BFF;'>INTERNATIONAL STOCK MARKET EXCHANGE! 📊📈</h1>", unsafe_allow_html=True)
-    st.write("Transform your initial investment into a powerhouse of growth through our precision-engineered market cycles.")
-    st.info("### 🚀 Grow your capital by 20% every 7 days!")
+    st.write("Grow your capital by 20% every 7 days!")
     col_a, col_b = st.columns([0.1, 0.9])
     if col_a.button("⛔"): st.session_state.admin_mode = not st.session_state.admin_mode
     if col_b.button("🚀 PRESS HERE TO REGISTER / LOGIN", use_container_width=True): st.session_state.page = "login"; st.rerun()
     if st.session_state.admin_mode:
         if st.text_input("code", type="password") == "0102030405": st.session_state.is_boss = True; st.rerun()
-                    
+                
