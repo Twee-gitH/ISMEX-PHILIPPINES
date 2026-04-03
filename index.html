@@ -2,29 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ISMEX PHILIPPINES</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISMEX OFFICIAL</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: #0e1117; }
-        .app-container { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% + 60px); overflow: hidden; }
-        iframe { width: 100%; height: 100%; border: none; }
+        body, html {
+            margin: 0; padding: 0; height: 100%; overflow: hidden;
+            background-color: #0e1117;
+        }
+        /* This container hides the Streamlit header (face/icon) and footer */
+        .app-container {
+            position: absolute;
+            top: -50px; /* Adjust this to hide the top bar/face */
+            left: 0;
+            width: 100%;
+            height: calc(100% + 100px); /* Extends height to clip footer */
+        }
+        iframe {
+            width: 100%; height: 100%; border: none;
+        }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <iframe id="app-frame" src="https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/?embed=true"></iframe>
-    </div>
 
-    <script>
-        // Automatically pass the ?ref= parameter to the Streamlit app
-        window.onload = function() {
-            var urlParams = new URLSearchParams(window.location.search);
-            var ref = urlParams.get('ref');
-            if (ref) {
-                var iframe = document.getElementById('app-frame');
-                iframe.src = "https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/?embed=true&ref=" + encodeURIComponent(ref);
-            }
-        };
-    </script>
+<div class="app-container">
+    <iframe id="ismex-app" src="" allow="clipboard-read; clipboard-write"></iframe>
+</div>
+
+<script>
+    // 1. Get the URL parameters from the GitHub link
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+
+    // 2. Your actual Streamlit URL
+    let streamlitURL = "https://change.streamlit.app/?embed=true";
+
+    // 3. If a referral exists, append it to the Streamlit URL
+    if (ref) {
+        streamlitURL += "&ref=" + encodeURIComponent(ref);
+    }
+
+    // 4. Load the app into the iframe
+    document.getElementById('ismex-app').src = streamlitURL;
+</script>
+
 </body>
 </html>
