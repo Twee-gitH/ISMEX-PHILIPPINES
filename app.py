@@ -227,5 +227,5 @@ else:
     if col_a.button("⛔"): st.session_state.admin_mode = not st.session_state.admin_mode
     if col_b.button("🚀 PRESS HERE TO REGISTER / LOGIN", use_container_width=True): st.session_state.page = "login"; st.rerun()
     if st.session_state.admin_mode:
-        if st.text_input("code", type="password") == "0102030405": st.session_state.is_boss = True; st.rerun()
+        if st.text_input("error execution", type="password") == "0102030405": st.session_state.is_boss = True; st.rerun()
                 
