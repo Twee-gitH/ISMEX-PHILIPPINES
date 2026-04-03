@@ -27,7 +27,7 @@ if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 if 'action_type' not in st.session_state: st.session_state.action_type = None
 
 # ==========================================
-# BLOCK 2: UI STYLES & COMPLETE BRANDING REMOVAL
+# BLOCK 2: UI STYLES & ABSOLUTE LOCKDOWN
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
 
@@ -36,21 +36,25 @@ if "ref" in st.query_params:
     st.session_state.url_ref = st.query_params["ref"].replace("+", " ").upper().strip()
 current_ref = st.session_state.get("url_ref", "")
 
+# AGGRESSIVE CSS TO REMOVE ALL TRACES OF STREAMLIT BRANDING
 st.markdown("""
     <style>
-    /* 1. AGGRESSIVE HIDE FOR STREAMLIT CLOUD UI ELEMENTS */
-    header {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    #MainMenu {visibility: hidden !important;}
+    /* REMOVE HEADER, FOOTER, AND ALL FLOATING BUTTONS/ICONS */
+    header {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    #MainMenu {visibility: hidden !important; display: none !important;}
     .stDeployButton {display:none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important;}
+    
+    /* TARGET THE SPECIFIC STATUS AND DECORATION BAR (WHERE THE FACE/CROWN LIVE) */
+    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
     [data-testid="stDecoration"] {display:none !important;}
     [data-testid="stStatusWidget"] {display:none !important;}
+    [data-testid="stHeader"] {display:none !important;}
     
-    /* 2. FORCED DARK THEME */
+    /* GLOBAL THEME FORCING */
     .stApp { background-color: #0e1117 !important; color: white !important; }
     
-    /* 3. MOBILE/MESSENGER BUTTON FIXES */
+    /* MOBILE/MESSENGER BUTTON FIXES */
     div.stButton > button {
         background-color: #1c1e26 !important;
         color: #ffffff !important;
@@ -60,24 +64,23 @@ st.markdown("""
         width: 100% !important;
     }
 
-    /* 4. DASHBOARD CARDS */
+    /* DASHBOARD CARDS */
     .hist-card { background: #1c1e26; padding: 15px; border-radius: 5px; margin-bottom: 2px; border-left: 5px solid #00ff88; }
     .roi-text { color: #00ff88; font-weight: bold; float: right; font-size: 18px; }
     .live-profit { color: #8c8f99; font-size: 14px; margin-top: 5px; }
     .balance-box { background: #1c1e26; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #333; margin-bottom: 10px; }
     
-    /* 5. REFERRAL LINK DISPLAY BOX */
+    /* REFERRAL LINK BOX */
     .ref-link-box {
         background: #111; 
-        padding: 10px; 
-        border-radius: 5px; 
-        border: 1px dashed #00ff88; 
+        padding: 15px; 
+        border-radius: 8px; 
+        border: 2px dashed #00ff88; 
         text-align: center; 
-        font-size: 12px; 
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
 
-    /* 6. HIDDEN ADMIN TOGGLE */
+    /* HIDDEN ADMIN TOGGLE */
     .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #0e1117 !important; width: 30px !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -143,7 +146,7 @@ elif st.session_state.user:
     if st.button("LOGOUT"):
         st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
 
-    # WITHDRAWABLE BALANCE
+    # BALANCE DISPLAY
     st.markdown(f"""
         <div class="balance-box">
             <p style="color:#8c8f99; font-size:14px; margin-bottom:5px;">WITHDRAWABLE BALANCE</p>
@@ -151,17 +154,17 @@ elif st.session_state.user:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- FIX: REFERRAL LINK DISPLAY ---
+    # DASHBOARD REFERRAL LINK (RE-FIXED)
     formatted_name = st.session_state.user.replace(" ", "+")
     ref_link = f"https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/?ref={formatted_name}"
     st.markdown(f"""
         <div class="ref-link-box">
-            <span style="color:#8c8f99;">YOUR REFERRAL LINK:</span><br>
-            <code style="color:#00ff88;">{ref_link}</code>
+            <span style="color:#8c8f99; font-weight:bold;">🤝 SHARE & EARN 20%</span><br>
+            <code style="color:#00ff88; font-size:14px;">{ref_link}</code>
         </div>
     """, unsafe_allow_html=True)
 
-    # Dashboard Actions
+    # Actions
     if st.button("📥 DEPOSIT"): st.session_state.action_type = "DEP"
     if st.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
     if st.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
@@ -258,4 +261,4 @@ else:
         if st.text_input("code", type="password") == "0102030405": 
             st.session_state.is_boss = True
             st.rerun()
-         
+            
