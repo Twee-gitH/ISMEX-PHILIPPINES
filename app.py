@@ -140,31 +140,28 @@ if st.session_state.is_boss:
 # USER DASHBOARD SECTION
 # ==========================================
 elif st.session_state.user:
-    reg = load_registry()
-    data = reg.get(st.session_state.user, {})
-    
-    # FORCE THE LINK TO THE TOP
-    user_id = str(st.session_state.user).replace(" ", "+").upper()
-    my_link = f"https://twee-gith.github.io/ISMEX-PHILIPPINES/?ref={user_id}"
-
-    st.write(f"Logged in as: **{user_id}**")
-    
-    # THIS BLOCK MUST SHOW UP NOW
-    st.error("📢 YOUR REFERRAL LINK IS BELOW:")
-    st.code(my_link, language="text")
-    st.info("Copy the link above to invite friends.")
-    
+    # 1. LOGOUT AT THE VERY TOP
     if st.button("LOGOUT"):
         st.session_state.user = None
         st.rerun()
 
-    # THE REST OF YOUR DASHBOARD
+    # 2. FORCE THE REFERRAL LINK (Simple Text)
+    # Using your GitHub Pages URL from your screenshot
+    user_id_clean = str(st.session_state.user).replace(" ", "+").upper()
+    final_link = f"https://twee-gith.github.io/ISMEX-PHILIPPINES/?ref={user_id_clean}"
+
+    st.warning("⚠️ YOUR INVITE LINK:")
+    st.code(final_link, language="text")
+    st.caption("Copy this and share with your recruits.")
+
+    # 3. BALANCE & THE REST
     st.markdown(f"""
-        <div style="border: 1px solid #00ff88; padding: 20px; border-radius: 15px; text-align: center;">
+        <div style="border: 2px solid #00ff88; padding: 20px; border-radius: 15px; text-align: center; margin-top: 10px;">
             <p style="color:#8c8f99; font-size:12px;">WITHDRAWABLE BALANCE</p>
             <h1 style="color:#00ff88; font-size:45px; margin:0;">₱{data.get('wallet', 0.0):,.2f}</h1>
         </div>
     """, unsafe_allow_html=True)
+    
     
 
     # --- WITHDRAWABLE BALANCE ---
