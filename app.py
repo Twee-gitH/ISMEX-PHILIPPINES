@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import json
 import os
 from datetime import datetime, timedelta
@@ -27,7 +27,7 @@ if 'admin_mode' not in st.session_state: st.session_state.admin_mode = False
 if 'action_type' not in st.session_state: st.session_state.action_type = None
 
 # ==========================================
-# BLOCK 2: UI STYLES & AGGRESSIVE BRANDING REMOVAL
+# BLOCK 2: UI STYLES & COMPLETE BRANDING REMOVAL
 # ==========================================
 st.set_page_config(page_title="ISMEX Official", layout="wide")
 
@@ -36,39 +36,48 @@ if "ref" in st.query_params:
     st.session_state.url_ref = st.query_params["ref"].replace("+", " ").upper().strip()
 current_ref = st.session_state.get("url_ref", "")
 
-# AGGRESSIVE CSS TO KILL ALL BRANDING & FIX MESSENGER BUTTONS
 st.markdown("""
     <style>
-    /* 1. HIDE EVERYTHING: HAMBURGER, FOOTER, GITHUB ICON, PROFILE FACE */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
+    /* 1. AGGRESSIVE HIDE FOR STREAMLIT CLOUD UI ELEMENTS */
     header {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
     .stDeployButton {display:none !important;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {display:none !important;}
     [data-testid="stStatusWidget"] {display:none !important;}
     
-    /* 2. GLOBAL THEME FORCING */
+    /* 2. FORCED DARK THEME */
     .stApp { background-color: #0e1117 !important; color: white !important; }
     
-    /* 3. FIX FOR WHITE BUTTONS IN MESSENGER/MOBILE */
+    /* 3. MOBILE/MESSENGER BUTTON FIXES */
     div.stButton > button {
         background-color: #1c1e26 !important;
         color: #ffffff !important;
         border: 2px solid #333 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
-        text-transform: uppercase !important;
         width: 100% !important;
     }
 
-    /* 4. DASHBOARD STYLING */
+    /* 4. DASHBOARD CARDS */
     .hist-card { background: #1c1e26; padding: 15px; border-radius: 5px; margin-bottom: 2px; border-left: 5px solid #00ff88; }
     .roi-text { color: #00ff88; font-weight: bold; float: right; font-size: 18px; }
     .live-profit { color: #8c8f99; font-size: 14px; margin-top: 5px; }
-    .balance-box { background: #1c1e26; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #333; margin-bottom: 20px; }
+    .balance-box { background: #1c1e26; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid #333; margin-bottom: 10px; }
     
-    /* 5. HIDDEN ADMIN TOGGLE */
+    /* 5. REFERRAL LINK DISPLAY BOX */
+    .ref-link-box {
+        background: #111; 
+        padding: 10px; 
+        border-radius: 5px; 
+        border: 1px dashed #00ff88; 
+        text-align: center; 
+        font-size: 12px; 
+        margin-bottom: 20px;
+    }
+
+    /* 6. HIDDEN ADMIN TOGGLE */
     .stButton>button:contains("⛔") { background-color: transparent !important; border: none !important; color: #0e1117 !important; width: 30px !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -134,6 +143,7 @@ elif st.session_state.user:
     if st.button("LOGOUT"):
         st.session_state.user = None; st.session_state.page = "ad"; st.rerun()
 
+    # WITHDRAWABLE BALANCE
     st.markdown(f"""
         <div class="balance-box">
             <p style="color:#8c8f99; font-size:14px; margin-bottom:5px;">WITHDRAWABLE BALANCE</p>
@@ -141,6 +151,17 @@ elif st.session_state.user:
         </div>
     """, unsafe_allow_html=True)
 
+    # --- FIX: REFERRAL LINK DISPLAY ---
+    formatted_name = st.session_state.user.replace(" ", "+")
+    ref_link = f"https://investment-a6i6xonbqcuytzdgvkx9m6.streamlit.app/?ref={formatted_name}"
+    st.markdown(f"""
+        <div class="ref-link-box">
+            <span style="color:#8c8f99;">YOUR REFERRAL LINK:</span><br>
+            <code style="color:#00ff88;">{ref_link}</code>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Dashboard Actions
     if st.button("📥 DEPOSIT"): st.session_state.action_type = "DEP"
     if st.button("💸 WITHDRAW"): st.session_state.action_type = "WITH"
     if st.button("♻️ REINVEST"): st.session_state.action_type = "REIN"
@@ -237,4 +258,4 @@ else:
         if st.text_input("code", type="password") == "0102030405": 
             st.session_state.is_boss = True
             st.rerun()
-    
+         
