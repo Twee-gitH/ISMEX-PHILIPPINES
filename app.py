@@ -164,7 +164,7 @@ elif st.session_state.user:
                     update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
                 else: st.error("Check balance and fill all details.")
 
-            st.markdown("### 🚀 RUNNING CAPITALS")
+                st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
     if not active: 
         st.info("No running capitals.")
@@ -207,6 +207,7 @@ elif st.session_state.user:
                 active.pop(idx)
                 update_user(st.session_state.user, data)
                 st.rerun()
+                
                 
         
     st.divider()
