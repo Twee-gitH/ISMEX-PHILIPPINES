@@ -164,23 +164,53 @@ elif st.session_state.user:
                     update_user(st.session_state.user, data); st.session_state.action_type = None; st.rerun()
                 else: st.error("Check balance and fill all details.")
 
-    st.markdown("### 🚀 RUNNING CAPITALS")
+        st.markdown("### 🚀 RUNNING CAPITALS")
     active = data.get('inv', [])
-    if not active: st.info("No running capitals.")
+    if not active: 
+        st.info("No running capitals.")
     else:
         now = datetime.now()
         for idx, a in reversed(list(enumerate(active))):
             start_dt = datetime.fromisoformat(a['start_time'])
-            progress = min(1.0, (now - start_dt).total_seconds() / (7 * 86400))
+            # Calculate the exact unlock time (7 Days later)
+            unlock_dt = start_dt + timedelta(days=7)
+            
+            # Progress calculation
+            total_seconds = 7 * 86400
+            elapsed_seconds = (now - start_dt).total_seconds()
+            progress = min(1.0, elapsed_seconds / total_seconds)
+            
             total_roi = a['amount'] * 1.20
             live_profit = (a['amount'] * 0.20) * progress
-            st.markdown(f"""<div class='hist-card'><span class='roi-text'>ROI: ₱{total_roi:,.2f}</span><b>CAPITAL: ₱{a['amount']:,.2f}</b><br><div class='live-profit'>LIVE PROFIT: ₱{live_profit:,.2f}</div></div>""", unsafe_allow_html=True)
+            
+            # UI Card
+            st.markdown(f"""
+                <div class='hist-card'>
+                    <span class='roi-text'>ROI: ₱{total_roi:,.2f}</span>
+                    <b>CAPITAL: ₱{a['amount']:,.2f}</b><br>
+                    <div class='live-profit'>
+                        LIVE PROFIT: ₱{live_profit:,.2f}<br>
+                        🔓 UNLOCKS ON: {unlock_dt.strftime('%Y-%m-%d %I:%M %p')}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
             st.progress(progress)
-            if st.button(f"📥 PULL OUT ₱{total_roi:,.2f}", key=f"p_{idx}", disabled=not (progress >= 1.0)):
+            
+            # Button Logic: Only clickable if progress is 100% (7 days passed)
+            can_pull_out = now >= unlock_dt
+            if st.button(f"📥 PULL OUT ₱{total_roi:,.2f}", key=f"p_{idx}", disabled=not can_pull_out):
                 data['wallet'] = data.get('wallet', 0.0) + total_roi
-                data.setdefault('history', []).append({"type": "PULL_OUT", "amount": total_roi, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "status": "CONFIRMED"})
-                active.pop(idx); update_user(st.session_state.user, data); st.rerun()
-
+                data.setdefault('history', []).append({
+                    "type": "PULL_OUT", 
+                    "amount": total_roi, 
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                    "status": "CONFIRMED"
+                })
+                active.pop(idx)
+                update_user(st.session_state.user, data)
+                st.rerun()
+        
     st.divider()
     st.markdown("### 🤝 REFERRAL PROGRAM")
     st.code(f"https://twee-gith.github.io/ISMEX-PHILIPPINES/?ref={user_display.replace(' ', '+')}", language="text")
